@@ -26,5 +26,7 @@ export const WORDS_PER_MINUTE = 120;
 export const AUTOSCROLL_TRIGGER_RATIO = 0.75;
 export const AUTOSCROLL_TARGET_RATIO = 0.3;
 
+export const PARAGRAPH_MIN_WORDS = 20;
+
 export const PLAYER_HEIGHT = 48;
 export const PLAYER_BORDER_RADIUS = 24;

@@ -22,6 +22,9 @@ export interface PlaybackState {
   segmentProgress: number;
   currentTime: number;
   duration: number;
+  elapsedTime: number;
+  estimatedTotalTime: number;
+  completedSegmentsDuration: number;
 }
 
 export interface ExtractionResult {
@@ -63,6 +66,14 @@ export interface ReadingProgress {
   segmentIndex: number;
   totalSegments: number;
   timestamp: number;
+}
+
+export interface GlobalSentenceBoundary {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  segmentIndex: number;
+  sentenceIndexInSegment: number;
 }
 
 export interface PageInfo {

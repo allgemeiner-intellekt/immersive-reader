@@ -1,5 +1,6 @@
-import { detectTextBlocks } from './detector';
+import { detectTextBlocks, detectParagraphs, detectPageType } from './detector';
 import { createPlayButton, removeAllPlayButtons } from './play-button';
+import { findArticleRoot } from '../extraction/generic';
 import { isGmail } from '../extraction/extractor';
 import { useStore } from '../state/store';
 
@@ -11,12 +12,19 @@ export function injectPlayButtons(): void {
     return;
   }
 
-  const blocks = detectTextBlocks();
-  for (const block of blocks) {
-    const btn = createPlayButton(() => {
-      startPlaybackFromElement(block.element);
-    });
-    block.element.insertBefore(btn, block.element.firstChild);
+  const pageType = detectPageType();
+
+  if (pageType === 'article' || pageType === 'reference') {
+    injectParagraphButtons();
+  } else {
+    // Generic: original behavior with 200+ word blocks
+    const blocks = detectTextBlocks();
+    for (const block of blocks) {
+      const btn = createPlayButton(() => {
+        startPlaybackFromElement(block.element);
+      });
+      block.element.insertBefore(btn, block.element.firstChild);
+    }
   }
 }
 
@@ -25,6 +33,57 @@ export function cleanupPlayButtons(): void {
   if (gmailObserver) {
     gmailObserver.disconnect();
     gmailObserver = null;
+  }
+}
+
+function injectParagraphButtons(): void {
+  const root = findArticleRoot();
+  if (!root) {
+    // Fallback to generic behavior
+    const blocks = detectTextBlocks();
+    for (const block of blocks) {
+      const btn = createPlayButton(() => {
+        startPlaybackFromElement(block.element);
+      });
+      block.element.insertBefore(btn, block.element.firstChild);
+    }
+    return;
+  }
+
+  const paragraphs = detectParagraphs(root);
+
+  for (const para of paragraphs) {
+    const el = para.element as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    const hasLeftMargin = rect.left > 50;
+
+    if (hasLeftMargin) {
+      // Position button in the left margin
+      const computedPosition = getComputedStyle(el).position;
+      if (computedPosition === 'static') {
+        el.style.position = 'relative';
+      }
+
+      const btn = createPlayButton(() => {
+        startPlaybackFromElement(el);
+      }, 'small');
+
+      Object.assign(btn.style, {
+        position: 'absolute',
+        left: '-36px',
+        top: '2px',
+        marginRight: '0',
+      });
+
+      el.appendChild(btn);
+    } else {
+      // Inline at paragraph start
+      const btn = createPlayButton(() => {
+        startPlaybackFromElement(el);
+      }, 'small');
+
+      el.insertBefore(btn, el.firstChild);
+    }
   }
 }
 

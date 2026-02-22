@@ -10,6 +10,7 @@ const CONTENT_TO_OFFSCREEN: Set<string> = new Set([
   MSG.STOP,
   MSG.SET_SPEED,
   MSG.PREFETCH_SEGMENT,
+  MSG.SEEK_TO_TIME,
 ]);
 
 const OFFSCREEN_TO_CONTENT: Set<string> = new Set([

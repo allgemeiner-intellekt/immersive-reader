@@ -96,6 +96,15 @@
   white-space: nowrap;
 }
 
+.ir-time-display {
+  font-size: 11px;
+  color: #888888;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 72px;
+  text-align: right;
+}
+
 /* Speed control */
 .ir-speed-wrapper {
   position: relative;

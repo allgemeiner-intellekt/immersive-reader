@@ -22,6 +22,18 @@ const SKIP_SELECTORS = [
   '.catlinks',
   '.mw-indicators',
   '.noprint',
+  '.comments',
+  '#comments',
+  '.related-posts',
+  '.share-buttons',
+  '.social-share',
+  '.author-bio',
+  '.advertisement',
+  '[class*="ad-"]',
+  '.newsletter-signup',
+  '.breadcrumb',
+  '.wp-block-latest-posts',
+  '.sharedaddy',
 ];
 
 const SKIP_SELECTOR_STRING = SKIP_SELECTORS.join(',');

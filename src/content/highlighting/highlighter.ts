@@ -1,9 +1,13 @@
 import type { TextNodeEntry, Segment, WordTiming, SentenceBoundary } from '@shared/types';
 import { estimateWordTimings, findWordAtTime } from './timing';
+import { splitSentences } from '../extraction/sentence-splitter';
 import { autoScrollRange } from './scroller';
 
 const SENTENCE_HIGHLIGHT = 'ir-sentence';
 const WORD_HIGHLIGHT = 'ir-active-word';
+
+/** EMA smoothing factor for calibration */
+const EMA_ALPHA = 0.3;
 
 export class Highlighter {
   private entries: TextNodeEntry[];
@@ -18,6 +22,12 @@ export class Highlighter {
   private activeSentenceIndex = -1;
   private activeSegmentIndex = -1;
   private timingsLockedToFinalDuration = false;
+
+  /** Cross-segment EMA calibration factor */
+  private durationCalibrationFactor = 1.0;
+  private calibrationSamples = 0;
+  private naiveEstimate = 0;
+  private hasEarlyCalibratedThisSegment = false;
 
   constructor(entries: TextNodeEntry[], segments: Segment[]) {
     this.entries = entries;
@@ -44,12 +54,21 @@ export class Highlighter {
 
     this.activeSegmentIndex = segmentIndex;
     this.timingsLockedToFinalDuration = false;
+    this.hasEarlyCalibratedThisSegment = false;
 
-    // Parse sentences in segment text
-    this.sentences = this.parseSentences(segment.text, segment.startOffset);
+    // Parse sentences using shared splitter
+    this.sentences = splitSentences(segment.text, segment.startOffset);
 
-    // Estimate word timings (with charStart/charEnd relative to segment text)
-    this.wordTimings = estimateWordTimings(segment.text);
+    // Estimate word timings with calibration factor applied
+    this.naiveEstimate = 0; // will be set below
+    const rawTimings = estimateWordTimings(segment.text);
+    if (rawTimings.length > 0) {
+      this.naiveEstimate = rawTimings[rawTimings.length - 1].endTime;
+    }
+    const calibratedDuration = this.naiveEstimate * this.durationCalibrationFactor;
+    this.wordTimings = calibratedDuration > 0
+      ? estimateWordTimings(segment.text, calibratedDuration)
+      : rawTimings;
 
     this.activeWordIndex = -1;
     this.activeSentenceIndex = -1;
@@ -86,10 +105,29 @@ export class Highlighter {
     const segment = this.segments[this.activeSegmentIndex];
     if (!segment) return;
 
+    // Early recalibration: when we have partial duration info (before durationFinal)
+    if (!this.timingsLockedToFinalDuration && !this.hasEarlyCalibratedThisSegment &&
+        duration > 0 && currentTime > 0.5) {
+      this.hasEarlyCalibratedThisSegment = true;
+      this.wordTimings = estimateWordTimings(segment.text, duration);
+    }
+
     // Recalculate timings when we get final duration (only once)
     if (durationFinal && duration > 0 && !this.timingsLockedToFinalDuration) {
       this.timingsLockedToFinalDuration = true;
       this.wordTimings = estimateWordTimings(segment.text, duration);
+
+      // Update EMA calibration factor
+      if (this.naiveEstimate > 0) {
+        const observedFactor = duration / this.naiveEstimate;
+        if (this.calibrationSamples === 0) {
+          this.durationCalibrationFactor = observedFactor;
+        } else {
+          this.durationCalibrationFactor =
+            EMA_ALPHA * observedFactor + (1 - EMA_ALPHA) * this.durationCalibrationFactor;
+        }
+        this.calibrationSamples++;
+      }
     }
 
     const wordIndex = findWordAtTime(this.wordTimings, currentTime);
@@ -148,7 +186,7 @@ export class Highlighter {
    * Create a DOM Range spanning from globalStart to globalEnd in the
    * text node map. Uses binary search + boundary snapping.
    */
-  private createRange(globalStart: number, globalEnd: number): Range | null {
+  createRange(globalStart: number, globalEnd: number): Range | null {
     const startPos = this.findDOMPosition(globalStart);
     const endPos = this.findDOMPosition(globalEnd);
     if (!startPos || !endPos) return null;
@@ -168,7 +206,7 @@ export class Highlighter {
    * for a given global character offset. Snaps to nearest entry boundary
    * when the offset falls in a separator gap.
    */
-  private findDOMPosition(globalOffset: number): { node: Text; offset: number } | null {
+  findDOMPosition(globalOffset: number): { node: Text; offset: number } | null {
     if (this.entries.length === 0) return null;
 
     // Binary search for the entry containing this offset
@@ -204,45 +242,19 @@ export class Highlighter {
     return null;
   }
 
-  private parseSentences(text: string, baseOffset: number): SentenceBoundary[] {
-    const sentences: SentenceBoundary[] = [];
-    const regex = /[^.!?]*[.!?]+[\s]*/g;
-    let match: RegExpExecArray | null;
-    let lastEnd = 0;
+  /** Get the current word timings (used by sentence click handler for seeking) */
+  getWordTimings(): WordTiming[] {
+    return this.wordTimings;
+  }
 
-    while ((match = regex.exec(text)) !== null) {
-      const sentenceText = match[0];
-      if (sentenceText.trim().length === 0) continue;
-      sentences.push({
-        text: sentenceText,
-        startOffset: baseOffset + match.index,
-        endOffset: baseOffset + match.index + sentenceText.trimEnd().length,
-      });
-      lastEnd = match.index + sentenceText.length;
-    }
+  /** Get current sentences (used by sentence click handler) */
+  getSentences(): SentenceBoundary[] {
+    return this.sentences;
+  }
 
-    // Remaining text after last sentence-ending punctuation
-    if (lastEnd < text.length) {
-      const remaining = text.slice(lastEnd);
-      if (remaining.trim().length > 0) {
-        sentences.push({
-          text: remaining,
-          startOffset: baseOffset + lastEnd,
-          endOffset: baseOffset + text.length,
-        });
-      }
-    }
-
-    // If no sentences were found, treat the whole text as one sentence
-    if (sentences.length === 0 && text.trim().length > 0) {
-      sentences.push({
-        text,
-        startOffset: baseOffset,
-        endOffset: baseOffset + text.length,
-      });
-    }
-
-    return sentences;
+  /** Get active segment index */
+  getActiveSegmentIndex(): number {
+    return this.activeSegmentIndex;
   }
 
   private findSentenceIndex(globalCharPos: number): number {

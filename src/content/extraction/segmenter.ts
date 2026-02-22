@@ -4,6 +4,7 @@ import {
   SEGMENT_MAX_CHARS,
   SENTENCES_PER_SEGMENT,
 } from '@shared/constants';
+import { splitSentenceStrings } from './sentence-splitter';
 
 export function segmentText(text: string): Segment[] {
   const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
@@ -16,7 +17,7 @@ export function segmentText(text: string): Segment[] {
     const paraStart = text.indexOf(paragraph, globalOffset);
     if (paraStart === -1) continue;
 
-    const sentences = splitSentences(paragraph);
+    const sentences = splitSentenceStrings(paragraph);
     let sentenceGroup: string[] = [];
     let groupStart = paraStart;
 
@@ -88,19 +89,6 @@ export function segmentText(text: string): Segment[] {
   }
 
   return segments;
-}
-
-function splitSentences(text: string): string[] {
-  const matches = text.match(/[^.!?]*[.!?]+[\s]*/g);
-  if (!matches) return [text];
-
-  // Check if there's remaining text after the last match
-  const matched = matches.join('');
-  if (matched.length < text.length) {
-    matches.push(text.slice(matched.length));
-  }
-
-  return matches;
 }
 
 function countWords(text: string): number {

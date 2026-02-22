@@ -56,6 +56,10 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
       player.setSpeed(message.speed);
       return { ok: true };
 
+    case MSG.SEEK_TO_TIME:
+      player.seekTo(message.time);
+      return { ok: true };
+
     default:
       return { ok: true };
   }

@@ -86,6 +86,12 @@ export class AudioPlayer {
     this.cleanup();
   }
 
+  seekTo(time: number): void {
+    if (this.audioEl.readyState >= 2) {
+      this.audioEl.currentTime = time;
+    }
+  }
+
   setSpeed(speed: number): void {
     this.audioEl.playbackRate = speed;
   }

@@ -2,11 +2,14 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { FloatingPlayer } from './player/FloatingPlayer';
 import { useStore } from './state/store';
 import { MSG, type ExtensionMessage } from '@shared/messages';
-import type { PageInfo, TextMapResult } from '@shared/types';
+import type { PageInfo, TextMapResult, GlobalSentenceBoundary } from '@shared/types';
+import { WORDS_PER_MINUTE } from '@shared/constants';
 import { extractContent } from './extraction/extractor';
 import { segmentText } from './extraction/segmenter';
+import { splitSentences } from './extraction/sentence-splitter';
 import { buildTextNodeMap } from './highlighting/dom-mapper';
 import { Highlighter } from './highlighting/highlighter';
+import { SentenceClickHandler } from './highlighting/sentence-click-handler';
 import { findArticleRoot } from './extraction/generic';
 import { injectPlayButtons, cleanupPlayButtons } from './injection/injector';
 import { saveReadingProgress } from '@shared/storage';
@@ -22,6 +25,9 @@ export function App({ shadowRoot }: AppProps) {
   const setSegments = useStore((s) => s.setSegments);
   const setTextNodeMap = useStore((s) => s.setTextNodeMap);
   const highlighterRef = useRef<Highlighter | null>(null);
+  const sentenceClickHandlerRef = useRef<SentenceClickHandler | null>(null);
+  const globalSentencesRef = useRef<GlobalSentenceBoundary[]>([]);
+  const totalWordsRef = useRef(0);
 
   // Initialize: inject play buttons
   useEffect(() => {
@@ -72,6 +78,9 @@ export function App({ shadowRoot }: AppProps) {
     chrome.runtime.sendMessage({ type: MSG.STOP }).catch(console.error);
     highlighterRef.current?.deactivateAll();
     highlighterRef.current = null;
+    sentenceClickHandlerRef.current?.destroy();
+    sentenceClickHandlerRef.current = null;
+    globalSentencesRef.current = [];
     useStore.getState().setError(null);
     setPlayback({
       isPlaying: false,
@@ -81,12 +90,15 @@ export function App({ shadowRoot }: AppProps) {
       segmentProgress: 0,
       currentTime: 0,
       duration: 0,
+      elapsedTime: 0,
+      estimatedTotalTime: 0,
+      completedSegmentsDuration: 0,
     });
   }, [setPlayback]);
 
   const advanceToNextSegment = useCallback(() => {
     const store = useStore.getState();
-    const { currentSegmentIndex, totalSegments } = store.playback;
+    const { currentSegmentIndex, totalSegments, completedSegmentsDuration, duration } = store.playback;
     const segs = store.segments;
     const nextIndex = currentSegmentIndex + 1;
 
@@ -97,11 +109,25 @@ export function App({ shadowRoot }: AppProps) {
       return;
     }
 
+    // Accumulate completed segment duration
+    const newCompletedDuration = completedSegmentsDuration + (duration > 0 ? duration : 0);
+
+    // Re-estimate total time from average duration per word
+    const completedWords = segs.slice(0, nextIndex).reduce((sum, s) => sum + s.wordCount, 0);
+    let newEstimatedTotal = store.playback.estimatedTotalTime;
+    if (completedWords > 0 && newCompletedDuration > 0) {
+      const avgDurationPerWord = newCompletedDuration / completedWords;
+      newEstimatedTotal = avgDurationPerWord * totalWordsRef.current;
+    }
+
     setPlayback({
       currentSegmentIndex: nextIndex,
       segmentProgress: 0,
       currentTime: 0,
       duration: 0,
+      completedSegmentsDuration: newCompletedDuration,
+      elapsedTime: newCompletedDuration,
+      estimatedTotalTime: newEstimatedTotal,
     });
 
     sendPlaySegment(segs[nextIndex], nextIndex);
@@ -121,6 +147,78 @@ export function App({ shadowRoot }: AppProps) {
     }
   }, [sendPlaySegment, sendPrefetch, setPlayback, stopPlayback]);
 
+  const jumpToSentence = useCallback((sentence: GlobalSentenceBoundary) => {
+    const store = useStore.getState();
+    if (!store.playback.isPlaying) return;
+
+    const segs = store.segments;
+    const { currentSegmentIndex } = store.playback;
+
+    if (sentence.segmentIndex === currentSegmentIndex) {
+      // Same segment: seek within audio
+      const highlighter = highlighterRef.current;
+      if (!highlighter) return;
+
+      const wordTimings = highlighter.getWordTimings();
+      const segment = segs[currentSegmentIndex];
+      if (!segment || wordTimings.length === 0) return;
+
+      // Find the word timing closest to the sentence start
+      const sentenceLocalStart = sentence.startOffset - segment.startOffset;
+      let seekTime = 0;
+      for (const wt of wordTimings) {
+        if (wt.charStart >= sentenceLocalStart) {
+          seekTime = wt.startTime;
+          break;
+        }
+      }
+
+      chrome.runtime.sendMessage({
+        type: MSG.SEEK_TO_TIME,
+        time: seekTime,
+        segmentId: segment.id,
+      }).catch(console.error);
+
+      // Update highlighter position
+      highlighter.updateProgress(seekTime, store.playback.duration, store.playback.duration > 0);
+    } else {
+      // Different segment: start playback at that segment
+      const targetIndex = sentence.segmentIndex;
+      if (targetIndex < 0 || targetIndex >= segs.length) return;
+
+      highlighterRef.current?.deactivateSegment();
+
+      // Calculate completed duration up to target segment
+      // (rough estimate: use average from what we know)
+      const prevCompletedDuration = store.playback.completedSegmentsDuration;
+      const prevIndex = store.playback.currentSegmentIndex;
+      const completedWords = segs.slice(0, prevIndex).reduce((sum, s) => sum + s.wordCount, 0);
+      let avgDurPerWord = 0;
+      if (completedWords > 0 && prevCompletedDuration > 0) {
+        avgDurPerWord = prevCompletedDuration / completedWords;
+      }
+      const targetCompletedWords = segs.slice(0, targetIndex).reduce((sum, s) => sum + s.wordCount, 0);
+      const newCompletedDuration = avgDurPerWord > 0
+        ? avgDurPerWord * targetCompletedWords
+        : 0;
+
+      setPlayback({
+        currentSegmentIndex: targetIndex,
+        segmentProgress: 0,
+        currentTime: 0,
+        duration: 0,
+        completedSegmentsDuration: newCompletedDuration,
+        elapsedTime: newCompletedDuration,
+      });
+
+      sendPlaySegment(segs[targetIndex], targetIndex);
+
+      if (targetIndex + 1 < segs.length) {
+        sendPrefetch(segs[targetIndex + 1]);
+      }
+    }
+  }, [setPlayback, sendPlaySegment, sendPrefetch]);
+
   const startReading = useCallback((fromSegmentIndex = 0, sourceElement?: Element) => {
     const store = useStore.getState();
 
@@ -129,6 +227,8 @@ export function App({ shadowRoot }: AppProps) {
     // playSegment() already calls cleanup() at the start.
     if (store.playback.isPlaying) {
       highlighterRef.current?.deactivateAll();
+      sentenceClickHandlerRef.current?.destroy();
+      sentenceClickHandlerRef.current = null;
     }
 
     // Clear any previous error
@@ -157,7 +257,40 @@ export function App({ shadowRoot }: AppProps) {
     setSegments(segs);
     setTextNodeMap(mapResult.entries);
 
+    // Count total words
+    const totalWords = segs.reduce((sum, s) => sum + s.wordCount, 0);
+    totalWordsRef.current = totalWords;
+
+    // Build global sentence map
+    const globalSentences: GlobalSentenceBoundary[] = [];
+    for (let si = 0; si < segs.length; si++) {
+      const seg = segs[si];
+      const sentences = splitSentences(seg.text, seg.startOffset);
+      for (let ssi = 0; ssi < sentences.length; ssi++) {
+        globalSentences.push({
+          text: sentences[ssi].text,
+          startOffset: sentences[ssi].startOffset,
+          endOffset: sentences[ssi].endOffset,
+          segmentIndex: si,
+          sentenceIndexInSegment: ssi,
+        });
+      }
+    }
+    globalSentencesRef.current = globalSentences;
+
     highlighterRef.current = new Highlighter(mapResult.entries, segs);
+
+    // Create sentence click handler
+    sentenceClickHandlerRef.current = new SentenceClickHandler(
+      rootElement,
+      mapResult.entries,
+      globalSentences,
+      jumpToSentence
+    );
+
+    // Compute initial estimated total time
+    const speed = store.settings.speed;
+    const estimatedTotalTime = (totalWords / WORDS_PER_MINUTE) * 60 / speed;
 
     setPlayback({
       isPlaying: true,
@@ -167,6 +300,9 @@ export function App({ shadowRoot }: AppProps) {
       segmentProgress: 0,
       currentTime: 0,
       duration: 0,
+      elapsedTime: 0,
+      estimatedTotalTime,
+      completedSegmentsDuration: 0,
     });
 
     sendPlaySegment(segs[fromSegmentIndex], fromSegmentIndex);
@@ -174,7 +310,7 @@ export function App({ shadowRoot }: AppProps) {
     if (fromSegmentIndex + 1 < segs.length) {
       sendPrefetch(segs[fromSegmentIndex + 1]);
     }
-  }, [setSegments, setTextNodeMap, setPlayback, sendPlaySegment, sendPrefetch]);
+  }, [setSegments, setTextNodeMap, setPlayback, sendPlaySegment, sendPrefetch, jumpToSentence]);
 
   // Listen for messages from background - single stable listener
   useEffect(() => {
@@ -186,10 +322,12 @@ export function App({ shadowRoot }: AppProps) {
       switch (message.type) {
         case MSG.PLAYBACK_PROGRESS: {
           const store = useStore.getState();
+          const elapsedTime = store.playback.completedSegmentsDuration + message.currentTime;
           store.setPlayback({
             currentTime: message.currentTime,
             duration: message.duration,
             segmentProgress: message.duration > 0 ? message.currentTime / message.duration : 0,
+            elapsedTime,
           });
           highlighterRef.current?.updateProgress(
             message.currentTime,

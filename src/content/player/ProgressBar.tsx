@@ -5,12 +5,19 @@ interface ProgressBarProps {
   playback: PlaybackState;
 }
 
-export function ProgressBar({ playback }: ProgressBarProps) {
-  const { currentSegmentIndex, totalSegments, segmentProgress } = playback;
+function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
-  // Overall progress: completed segments + current segment progress
-  const overallProgress = totalSegments > 0
-    ? ((currentSegmentIndex + segmentProgress) / totalSegments) * 100
+export function ProgressBar({ playback }: ProgressBarProps) {
+  const { elapsedTime, estimatedTotalTime } = playback;
+
+  // Time-based progress
+  const overallProgress = estimatedTotalTime > 0
+    ? (elapsedTime / estimatedTotalTime) * 100
     : 0;
 
   return (
@@ -21,8 +28,8 @@ export function ProgressBar({ playback }: ProgressBarProps) {
           style={{ width: `${Math.min(100, overallProgress)}%` }}
         />
       </div>
-      <span className="ir-segment-count">
-        {currentSegmentIndex + 1}/{totalSegments}
+      <span className="ir-time-display">
+        {formatTime(elapsedTime)} / {formatTime(estimatedTotalTime)}
       </span>
     </div>
   );

@@ -6,6 +6,7 @@ export const MSG = {
   STOP: 'STOP',
   SET_SPEED: 'SET_SPEED',
   PREFETCH_SEGMENT: 'PREFETCH_SEGMENT',
+  SEEK_TO_TIME: 'SEEK_TO_TIME',
 
   // Offscreen → Service Worker → Content
   PLAYBACK_PROGRESS: 'PLAYBACK_PROGRESS',
@@ -89,6 +90,12 @@ export interface StartReadingMessage {
   type: typeof MSG.START_READING;
 }
 
+export interface SeekToTimeMessage {
+  type: typeof MSG.SEEK_TO_TIME;
+  time: number;
+  segmentId: number;
+}
+
 export type ExtensionMessage =
   | PlaySegmentMessage
   | PrefetchSegmentMessage
@@ -100,4 +107,5 @@ export type ExtensionMessage =
   | SegmentCompleteMessage
   | PlaybackErrorMessage
   | GetPageInfoMessage
-  | StartReadingMessage;
+  | StartReadingMessage
+  | SeekToTimeMessage;
