@@ -1,10 +1,8 @@
 import type { TextNodeEntry, Segment, WordTiming, SentenceBoundary } from '@shared/types';
 import { estimateWordTimings, findWordAtTime } from './timing';
 import { splitSentences } from '../extraction/sentence-splitter';
-import { autoScrollRange } from './scroller';
 
 const SENTENCE_HIGHLIGHT = 'ir-sentence';
-const WORD_HIGHLIGHT = 'ir-active-word';
 
 /** EMA smoothing factor for calibration */
 const EMA_ALPHA = 0.3;
@@ -13,7 +11,6 @@ export class Highlighter {
   private entries: TextNodeEntry[];
   private segments: Segment[];
   private sentenceHighlight: Highlight;
-  private wordHighlight: Highlight;
   private styleEl: HTMLStyleElement | null = null;
 
   private wordTimings: WordTiming[] = [];
@@ -35,11 +32,8 @@ export class Highlighter {
 
     this.sentenceHighlight = new Highlight();
     this.sentenceHighlight.priority = 0;
-    this.wordHighlight = new Highlight();
-    this.wordHighlight.priority = 1;
 
     CSS.highlights.set(SENTENCE_HIGHLIGHT, this.sentenceHighlight);
-    CSS.highlights.set(WORD_HIGHLIGHT, this.wordHighlight);
 
     this.injectStyles();
   }
@@ -50,7 +44,6 @@ export class Highlighter {
 
     // Clear previous highlights
     this.sentenceHighlight.clear();
-    this.wordHighlight.clear();
 
     this.activeSegmentIndex = segmentIndex;
     this.timingsLockedToFinalDuration = false;
@@ -82,20 +75,7 @@ export class Highlighter {
       );
       if (sentenceRange) {
         this.sentenceHighlight.add(sentenceRange);
-      }
-    }
 
-    // Activate first word
-    if (this.wordTimings.length > 0) {
-      this.activeWordIndex = 0;
-      const wt = this.wordTimings[0];
-      const wordRange = this.createRange(
-        segment.startOffset + wt.charStart,
-        segment.startOffset + wt.charEnd
-      );
-      if (wordRange) {
-        this.wordHighlight.add(wordRange);
-        autoScrollRange(wordRange);
       }
     }
   }
@@ -132,20 +112,6 @@ export class Highlighter {
 
     const wordIndex = findWordAtTime(this.wordTimings, currentTime);
     if (wordIndex === this.activeWordIndex) return;
-
-    // Update word highlight
-    this.wordHighlight.clear();
-    if (wordIndex >= 0 && wordIndex < this.wordTimings.length) {
-      const wt = this.wordTimings[wordIndex];
-      const wordRange = this.createRange(
-        segment.startOffset + wt.charStart,
-        segment.startOffset + wt.charEnd
-      );
-      if (wordRange) {
-        this.wordHighlight.add(wordRange);
-        autoScrollRange(wordRange);
-      }
-    }
     this.activeWordIndex = wordIndex;
 
     // Check if we've moved to a new sentence
@@ -161,6 +127,7 @@ export class Highlighter {
         );
         if (sentenceRange) {
           this.sentenceHighlight.add(sentenceRange);
+  
         }
       }
     }
@@ -168,7 +135,6 @@ export class Highlighter {
 
   deactivateSegment(): void {
     this.sentenceHighlight.clear();
-    this.wordHighlight.clear();
     this.wordTimings = [];
     this.sentences = [];
     this.activeWordIndex = -1;
@@ -178,7 +144,6 @@ export class Highlighter {
   deactivateAll(): void {
     this.deactivateSegment();
     CSS.highlights.delete(SENTENCE_HIGHLIGHT);
-    CSS.highlights.delete(WORD_HIGHLIGHT);
     this.removeStyles();
   }
 
@@ -280,11 +245,7 @@ export class Highlighter {
     style.id = 'ir-highlight-styles';
     style.textContent = `
       ::highlight(${SENTENCE_HIGHLIGHT}) {
-        background-color: #F5F5F5;
-      }
-      ::highlight(${WORD_HIGHLIGHT}) {
-        background-color: #3A3A3A;
-        color: #FFFFFF;
+        background-color: rgba(255, 213, 79, 0.35);
       }
     `;
     document.head.appendChild(style);

@@ -11,7 +11,7 @@ import { buildTextNodeMap } from './highlighting/dom-mapper';
 import { Highlighter } from './highlighting/highlighter';
 import { SentenceClickHandler } from './highlighting/sentence-click-handler';
 import { findArticleRoot } from './extraction/generic';
-import { injectPlayButtons, cleanupPlayButtons } from './injection/injector';
+
 import { saveReadingProgress } from '@shared/storage';
 
 interface AppProps {
@@ -28,16 +28,6 @@ export function App({ shadowRoot }: AppProps) {
   const sentenceClickHandlerRef = useRef<SentenceClickHandler | null>(null);
   const globalSentencesRef = useRef<GlobalSentenceBoundary[]>([]);
   const totalWordsRef = useRef(0);
-
-  // Initialize: inject play buttons
-  useEffect(() => {
-    try {
-      injectPlayButtons();
-    } catch (err) {
-      console.error('Immersive Reader: injection error', err);
-    }
-    return () => cleanupPlayButtons();
-  }, []);
 
   const getSettings = useCallback(() => useStore.getState().settings, []);
 
@@ -422,19 +412,6 @@ export function App({ shadowRoot }: AppProps) {
   const dismissError = useCallback(() => {
     useStore.getState().setError(null);
   }, []);
-
-  // Listen for injected play button events
-  useEffect(() => {
-    const handler = () => {
-      const el = useStore.getState().pendingPlaybackElement;
-      if (el) {
-        useStore.getState().setPendingPlaybackElement(null);
-        startReading(0, el);
-      }
-    };
-    document.addEventListener('ir-start-playback', handler);
-    return () => document.removeEventListener('ir-start-playback', handler);
-  }, [startReading]);
 
   const togglePause = useCallback(() => {
     const store = useStore.getState();
