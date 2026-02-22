@@ -444,6 +444,20 @@ export function App({ shadowRoot }: AppProps) {
     }
   }, [setPlayback, advanceToNextSegment]);
 
+  // Spacebar pause/resume
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((e.target as HTMLElement)?.isContentEditable) return;
+      e.preventDefault();
+      togglePause();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [togglePause]);
+
   const skipForward = useCallback(() => {
     advanceToNextSegment();
   }, [advanceToNextSegment]);
