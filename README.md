@@ -18,7 +18,7 @@ docker run -p 5050:5050 travisvn/openai-edge-tts
 
 ## Usage
 
-- Click the **Play** button that appears above any text block (200+ words) on the page
+- Click the extension icon and press **Read this page** in the popup
 - A player capsule appears on the right edge of the screen — click to pause/resume, adjust speed, or stop
 - Click any sentence to jump to that point
 

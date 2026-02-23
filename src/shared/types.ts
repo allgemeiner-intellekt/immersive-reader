@@ -60,14 +60,6 @@ export interface WordTiming {
   charEnd: number;
 }
 
-export interface ReadingProgress {
-  url: string;
-  title: string;
-  segmentIndex: number;
-  totalSegments: number;
-  timestamp: number;
-}
-
 export interface GlobalSentenceBoundary {
   text: string;
   startOffset: number;

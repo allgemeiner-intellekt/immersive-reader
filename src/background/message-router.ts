@@ -2,6 +2,7 @@ import { MSG, type ExtensionMessage } from '@shared/messages';
 import { ensureOffscreenDocument } from './offscreen-manager';
 
 let activeTabId: number | null = null;
+const segmentToTabId = new Map<number, number>();
 
 const CONTENT_TO_OFFSCREEN: Set<string> = new Set([
   MSG.PLAY_SEGMENT,
@@ -27,8 +28,14 @@ export async function routeMessage(
   try {
     if (CONTENT_TO_OFFSCREEN.has(message.type)) {
       // Message from content script → forward to offscreen
-      if (sender.tab?.id) {
+      if (sender.tab?.id != null) {
         activeTabId = sender.tab.id;
+        if ('segmentId' in message && typeof message.segmentId === 'number') {
+          segmentToTabId.set(message.segmentId, sender.tab.id);
+        }
+        if (message.type === MSG.STOP) {
+          segmentToTabId.clear();
+        }
       }
       await ensureOffscreenDocument();
       // Fire-and-forget: don't block on offscreen response (Bug F fix)
@@ -36,12 +43,25 @@ export async function routeMessage(
       sendResponse({ ok: true });
     } else if (OFFSCREEN_TO_CONTENT.has(message.type)) {
       // Message from offscreen → forward to content script
-      if (activeTabId !== null) {
+      const targetTabId =
+        'segmentId' in message && typeof message.segmentId === 'number'
+          ? (segmentToTabId.get(message.segmentId) ?? activeTabId)
+          : activeTabId;
+
+      if (targetTabId !== null) {
         try {
-          await chrome.tabs.sendMessage(activeTabId, message);
+          await chrome.tabs.sendMessage(targetTabId, message);
+
+          // Drop completed segments to avoid unbounded growth.
+          if (message.type === MSG.SEGMENT_COMPLETE || message.type === MSG.PLAYBACK_ERROR) {
+            segmentToTabId.delete(message.segmentId);
+          }
         } catch {
           // Tab may have been closed
-          activeTabId = null;
+          segmentToTabId.clear();
+          if (targetTabId === activeTabId) {
+            activeTabId = null;
+          }
         }
       }
       sendResponse({ ok: true });

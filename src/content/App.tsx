@@ -12,8 +12,6 @@ import { Highlighter } from './highlighting/highlighter';
 import { SentenceClickHandler } from './highlighting/sentence-click-handler';
 import { findArticleRoot } from './extraction/generic';
 
-import { saveReadingProgress } from '@shared/storage';
-
 interface AppProps {
   shadowRoot: ShadowRoot;
 }
@@ -37,7 +35,7 @@ export function App({ shadowRoot }: AppProps) {
     const settings = getSettings();
     chrome.runtime.sendMessage({
       type: MSG.PLAY_SEGMENT,
-      text: segment.text,
+      text: segment.text.trim(),
       segmentId: segment.id,
       settings: {
         apiUrl: settings.apiUrl,
@@ -53,7 +51,7 @@ export function App({ shadowRoot }: AppProps) {
     const settings = getSettings();
     chrome.runtime.sendMessage({
       type: MSG.PREFETCH_SEGMENT,
-      text: segment.text,
+      text: segment.text.trim(),
       segmentId: segment.id,
       settings: {
         apiUrl: settings.apiUrl,
@@ -90,7 +88,7 @@ export function App({ shadowRoot }: AppProps) {
 
   const advanceToNextSegment = useCallback(() => {
     const store = useStore.getState();
-    const { currentSegmentIndex, totalSegments, completedSegmentsDuration, duration } = store.playback;
+    const { currentSegmentIndex, totalSegments, completedSegmentsDuration, duration, currentTime } = store.playback;
     const segs = store.segments;
     const nextIndex = currentSegmentIndex + 1;
 
@@ -101,8 +99,9 @@ export function App({ shadowRoot }: AppProps) {
       return;
     }
 
-    // Accumulate completed segment duration
-    const newCompletedDuration = completedSegmentsDuration + (duration > 0 ? duration : 0);
+    // Accumulate completed segment duration (duration may be 0 while metadata is still Infinity)
+    const segDuration = duration > 0 ? duration : currentTime;
+    const newCompletedDuration = completedSegmentsDuration + (segDuration > 0 ? segDuration : 0);
 
     // Re-estimate total time from average duration per word
     const completedWords = segs.slice(0, nextIndex).reduce((sum, s) => sum + s.wordCount, 0);
@@ -123,15 +122,6 @@ export function App({ shadowRoot }: AppProps) {
     });
 
     sendPlaySegment(segs[nextIndex], nextIndex);
-
-    // Save reading progress
-    saveReadingProgress({
-      url: window.location.href,
-      title: document.title,
-      segmentIndex: nextIndex,
-      totalSegments,
-      timestamp: Date.now(),
-    }).catch(console.error);
 
     // Prefetch next+1 segment
     if (nextIndex + 1 < segs.length) {
@@ -323,16 +313,23 @@ export function App({ shadowRoot }: AppProps) {
       switch (message.type) {
         case MSG.PLAYBACK_PROGRESS: {
           const store = useStore.getState();
+          const currentSeg = store.segments[store.playback.currentSegmentIndex];
+          if (currentSeg && message.segmentId !== currentSeg.id) {
+            return false;
+          }
+          const duration = Number.isFinite(message.duration) && message.duration > 0
+            ? message.duration
+            : store.playback.duration;
           const elapsedTime = store.playback.completedSegmentsDuration + message.currentTime;
           store.setPlayback({
             currentTime: message.currentTime,
-            duration: message.duration,
-            segmentProgress: message.duration > 0 ? message.currentTime / message.duration : 0,
+            duration,
+            segmentProgress: duration > 0 ? message.currentTime / duration : 0,
             elapsedTime,
           });
           highlighterRef.current?.updateProgress(
             message.currentTime,
-            message.duration,
+            duration,
             message.durationFinal
           );
           return false;

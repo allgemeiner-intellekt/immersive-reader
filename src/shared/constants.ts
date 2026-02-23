@@ -16,17 +16,6 @@ export const SEGMENT_MIN_CHARS = 50;
 export const SEGMENT_MAX_CHARS = 2000;
 export const SENTENCES_PER_SEGMENT = 2;
 
-export const PLAY_BUTTON_WORD_THRESHOLD = 200;
-
 export const PROGRESS_REPORT_INTERVAL_MS = 100;
-export const PROGRESS_MAX_ENTRIES = 50;
 
 export const WORDS_PER_MINUTE = 120;
-
-export const AUTOSCROLL_TRIGGER_RATIO = 0.75;
-export const AUTOSCROLL_TARGET_RATIO = 0.3;
-
-export const PARAGRAPH_MIN_WORDS = 20;
-
-export const PLAYER_WIDTH = 52;
-export const PLAYER_BORDER_RADIUS = 26;

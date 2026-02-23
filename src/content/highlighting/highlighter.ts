@@ -7,11 +7,20 @@ const SENTENCE_HIGHLIGHT = 'ir-sentence';
 /** EMA smoothing factor for calibration */
 const EMA_ALPHA = 0.3;
 
+function canUseCssHighlights(): boolean {
+  return typeof CSS !== 'undefined' && 'highlights' in CSS && typeof Highlight !== 'undefined';
+}
+
 export class Highlighter {
   private entries: TextNodeEntry[];
   private segments: Segment[];
-  private sentenceHighlight: Highlight;
-  private styleEl: HTMLStyleElement | null = null;
+
+  private useCssHighlights: boolean;
+  private sentenceHighlight: Highlight | null = null;
+
+  private overlayRoot: HTMLDivElement | null = null;
+  private overlayOffsets: { start: number; end: number } | null = null;
+  private overlayRaf: number | null = null;
 
   private wordTimings: WordTiming[] = [];
   private sentences: SentenceBoundary[] = [];
@@ -30,20 +39,22 @@ export class Highlighter {
     this.entries = entries;
     this.segments = segments;
 
-    this.sentenceHighlight = new Highlight();
-    this.sentenceHighlight.priority = 0;
+    this.useCssHighlights = canUseCssHighlights();
 
-    CSS.highlights.set(SENTENCE_HIGHLIGHT, this.sentenceHighlight);
-
-    this.injectStyles();
+    if (this.useCssHighlights) {
+      this.sentenceHighlight = new Highlight();
+      this.sentenceHighlight.priority = 0;
+      CSS.highlights.set(SENTENCE_HIGHLIGHT, this.sentenceHighlight);
+    } else {
+      this.mountOverlay();
+    }
   }
 
   activateSegment(segmentIndex: number): void {
     const segment = this.segments[segmentIndex];
     if (!segment) return;
 
-    // Clear previous highlights
-    this.sentenceHighlight.clear();
+    this.clearHighlight();
 
     this.activeSegmentIndex = segmentIndex;
     this.timingsLockedToFinalDuration = false;
@@ -53,7 +64,7 @@ export class Highlighter {
     this.sentences = splitSentences(segment.text, segment.startOffset);
 
     // Estimate word timings with calibration factor applied
-    this.naiveEstimate = 0; // will be set below
+    this.naiveEstimate = 0;
     const rawTimings = estimateWordTimings(segment.text);
     if (rawTimings.length > 0) {
       this.naiveEstimate = rawTimings[rawTimings.length - 1].endTime;
@@ -69,14 +80,7 @@ export class Highlighter {
     // Activate first sentence
     if (this.sentences.length > 0) {
       this.activeSentenceIndex = 0;
-      const sentenceRange = this.createRange(
-        this.sentences[0].startOffset,
-        this.sentences[0].endOffset
-      );
-      if (sentenceRange) {
-        this.sentenceHighlight.add(sentenceRange);
-
-      }
+      this.highlightSentence(this.sentences[0].startOffset, this.sentences[0].endOffset);
     }
   }
 
@@ -85,15 +89,21 @@ export class Highlighter {
     const segment = this.segments[this.activeSegmentIndex];
     if (!segment) return;
 
-    // Early recalibration: when we have partial duration info (before durationFinal)
-    if (!this.timingsLockedToFinalDuration && !this.hasEarlyCalibratedThisSegment &&
-        duration > 0 && currentTime > 0.5) {
+    const durationUsable = Number.isFinite(duration) && duration > 0;
+
+    // Early recalibration: only when duration is finite
+    if (
+      durationUsable &&
+      !this.timingsLockedToFinalDuration &&
+      !this.hasEarlyCalibratedThisSegment &&
+      currentTime > 0.5
+    ) {
       this.hasEarlyCalibratedThisSegment = true;
       this.wordTimings = estimateWordTimings(segment.text, duration);
     }
 
-    // Recalculate timings when we get final duration (only once)
-    if (durationFinal && duration > 0 && !this.timingsLockedToFinalDuration) {
+    // Recalculate timings when we get final finite duration (only once)
+    if (durationFinal && durationUsable && !this.timingsLockedToFinalDuration) {
       this.timingsLockedToFinalDuration = true;
       this.wordTimings = estimateWordTimings(segment.text, duration);
 
@@ -120,31 +130,33 @@ export class Highlighter {
       const newSentenceIndex = this.findSentenceIndex(globalCharPos);
       if (newSentenceIndex !== this.activeSentenceIndex && newSentenceIndex >= 0) {
         this.activeSentenceIndex = newSentenceIndex;
-        this.sentenceHighlight.clear();
-        const sentenceRange = this.createRange(
+        this.highlightSentence(
           this.sentences[newSentenceIndex].startOffset,
           this.sentences[newSentenceIndex].endOffset
         );
-        if (sentenceRange) {
-          this.sentenceHighlight.add(sentenceRange);
-  
-        }
       }
     }
   }
 
   deactivateSegment(): void {
-    this.sentenceHighlight.clear();
+    this.clearHighlight();
     this.wordTimings = [];
     this.sentences = [];
     this.activeWordIndex = -1;
     this.activeSentenceIndex = -1;
+    this.activeSegmentIndex = -1;
   }
 
   deactivateAll(): void {
     this.deactivateSegment();
-    CSS.highlights.delete(SENTENCE_HIGHLIGHT);
-    this.removeStyles();
+
+    if (this.useCssHighlights) {
+      CSS.highlights.delete(SENTENCE_HIGHLIGHT);
+      this.sentenceHighlight = null;
+      return;
+    }
+
+    this.unmountOverlay();
   }
 
   /**
@@ -174,7 +186,6 @@ export class Highlighter {
   findDOMPosition(globalOffset: number): { node: Text; offset: number } | null {
     if (this.entries.length === 0) return null;
 
-    // Binary search for the entry containing this offset
     let lo = 0;
     let hi = this.entries.length - 1;
 
@@ -186,7 +197,6 @@ export class Highlighter {
       } else if (globalOffset >= entry.globalEnd) {
         lo = mid + 1;
       } else {
-        // Found: offset is within this entry
         return {
           node: entry.node,
           offset: globalOffset - entry.globalStart,
@@ -228,32 +238,95 @@ export class Highlighter {
         return i;
       }
     }
-    // If past all sentences, return last
     if (this.sentences.length > 0) {
       return this.sentences.length - 1;
     }
     return -1;
   }
 
-  private injectStyles(): void {
-    if (document.getElementById('ir-highlight-styles')) {
-      this.styleEl = document.getElementById('ir-highlight-styles') as HTMLStyleElement;
+  private clearHighlight(): void {
+    if (this.useCssHighlights) {
+      this.sentenceHighlight?.clear();
       return;
     }
 
-    const style = document.createElement('style');
-    style.id = 'ir-highlight-styles';
-    style.textContent = `
-      ::highlight(${SENTENCE_HIGHLIGHT}) {
-        background-color: rgba(255, 213, 79, 0.35);
-      }
-    `;
-    document.head.appendChild(style);
-    this.styleEl = style;
+    this.overlayOffsets = null;
+    this.renderOverlay();
   }
 
-  private removeStyles(): void {
-    this.styleEl?.remove();
-    this.styleEl = null;
+  private highlightSentence(globalStart: number, globalEnd: number): void {
+    if (this.useCssHighlights) {
+      this.sentenceHighlight?.clear();
+      const range = this.createRange(globalStart, globalEnd);
+      if (range) {
+        this.sentenceHighlight?.add(range);
+      }
+      return;
+    }
+
+    this.overlayOffsets = { start: globalStart, end: globalEnd };
+    this.renderOverlay();
+  }
+
+  private mountOverlay(): void {
+    if (this.overlayRoot) return;
+
+    const root = document.createElement('div');
+    root.className = 'ir-highlight-overlay';
+
+    const parent = document.body ?? document.documentElement;
+    parent.appendChild(root);
+    this.overlayRoot = root;
+
+    document.addEventListener('scroll', this.handleOverlayViewportChange, true);
+    window.addEventListener('resize', this.handleOverlayViewportChange);
+  }
+
+  private unmountOverlay(): void {
+    document.removeEventListener('scroll', this.handleOverlayViewportChange, true);
+    window.removeEventListener('resize', this.handleOverlayViewportChange);
+
+    if (this.overlayRaf !== null) {
+      cancelAnimationFrame(this.overlayRaf);
+      this.overlayRaf = null;
+    }
+
+    this.overlayOffsets = null;
+    this.overlayRoot?.remove();
+    this.overlayRoot = null;
+  }
+
+  private handleOverlayViewportChange = (): void => {
+    if (!this.overlayOffsets) return;
+    if (this.overlayRaf !== null) return;
+
+    this.overlayRaf = requestAnimationFrame(() => {
+      this.overlayRaf = null;
+      this.renderOverlay();
+    });
+  };
+
+  private renderOverlay(): void {
+    if (!this.overlayRoot) return;
+    this.overlayRoot.replaceChildren();
+
+    if (!this.overlayOffsets) return;
+
+    const range = this.createRange(this.overlayOffsets.start, this.overlayOffsets.end);
+    if (!range) return;
+
+    const rects = Array.from(range.getClientRects());
+    for (const rect of rects) {
+      if (rect.width <= 0 || rect.height <= 0) continue;
+
+      const el = document.createElement('div');
+      el.className = 'ir-sentence-overlay-rect';
+      el.style.left = `${rect.left}px`;
+      el.style.top = `${rect.top}px`;
+      el.style.width = `${rect.width}px`;
+      el.style.height = `${rect.height}px`;
+      this.overlayRoot.appendChild(el);
+    }
   }
 }
+

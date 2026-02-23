@@ -32,7 +32,9 @@ export function extractGeneric(): ExtractionResult | null {
     title: article.title,
     html: article.content,
     textContent: '',
-    wordCount: sourceElement ? countWords((sourceElement as HTMLElement).innerText) : 0,
+    wordCount: sourceElement
+      ? countWords((sourceElement as HTMLElement).innerText)
+      : countWords(article.textContent),
     sourceElement,
   };
 }

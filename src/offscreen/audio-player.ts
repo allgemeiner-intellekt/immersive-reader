@@ -21,6 +21,7 @@ export class AudioPlayer {
   private hasStartedPlaying = false;
   private totalBuffered = 0;
   private prefetchController: AbortController | null = null;
+  private endedListener: (() => void) | null = null;
 
   constructor(audioEl: HTMLAudioElement) {
     this.audioEl = audioEl;
@@ -157,18 +158,22 @@ export class AudioPlayer {
             });
 
             // Register ended listener BEFORE stream loop (Bug B fix)
-            this.audioEl.addEventListener(
-              'ended',
-              () => {
-                this.stopProgressReporting();
-                this.sendMessage({
-                  type: MSG.SEGMENT_COMPLETE,
-                  segmentId,
-                });
-                resolve();
-              },
-              { once: true }
-            );
+            if (this.endedListener) {
+              this.audioEl.removeEventListener('ended', this.endedListener);
+              this.endedListener = null;
+            }
+
+            this.endedListener = () => {
+              this.stopProgressReporting();
+              this.sendMessage({
+                type: MSG.SEGMENT_COMPLETE,
+                segmentId,
+              });
+              this.endedListener = null;
+              resolve();
+            };
+
+            this.audioEl.addEventListener('ended', this.endedListener, { once: true });
 
             const reader = body.getReader();
 
@@ -260,10 +265,12 @@ export class AudioPlayer {
   private startProgressReporting(): void {
     this.stopProgressReporting();
     this.progressInterval = setInterval(() => {
+      const rawDuration = this.audioEl.duration;
+      const duration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 0;
       this.sendMessage({
         type: MSG.PLAYBACK_PROGRESS,
         currentTime: this.audioEl.currentTime,
-        duration: this.audioEl.duration || 0,
+        duration,
         segmentId: this.currentSegmentId,
         durationFinal: this.streamDone,
       });
@@ -288,6 +295,11 @@ export class AudioPlayer {
     if (this.prefetchController) {
       this.prefetchController.abort();
       this.prefetchController = null;
+    }
+
+    if (this.endedListener) {
+      this.audioEl.removeEventListener('ended', this.endedListener);
+      this.endedListener = null;
     }
 
     this.audioEl.pause();

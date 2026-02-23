@@ -7,13 +7,19 @@ const INTERACTIVE_TAGS = new Set(['a', 'button', 'input', 'select', 'textarea', 
 
 export type SentenceClickCallback = (sentence: GlobalSentenceBoundary) => void;
 
+function canUseCssHighlights(): boolean {
+  return typeof CSS !== 'undefined' && 'highlights' in CSS && typeof Highlight !== 'undefined';
+}
+
 export class SentenceClickHandler {
   private root: Element;
   private entries: TextNodeEntry[];
+  private nodeStartMap: WeakMap<Text, number>;
   private sentences: GlobalSentenceBoundary[];
   private callback: SentenceClickCallback;
-  private hoverHighlight: Highlight;
-  private styleEl: HTMLStyleElement | null = null;
+
+  private useCssHighlights: boolean;
+  private hoverHighlight: Highlight | null = null;
   private lastHoveredIndex = -1;
   private throttleTimer: number | null = null;
 
@@ -28,13 +34,21 @@ export class SentenceClickHandler {
     this.sentences = sentences;
     this.callback = callback;
 
-    this.hoverHighlight = new Highlight();
-    this.hoverHighlight.priority = 2;
-    CSS.highlights.set(HOVER_HIGHLIGHT, this.hoverHighlight);
+    this.nodeStartMap = new WeakMap();
+    for (const entry of entries) {
+      this.nodeStartMap.set(entry.node, entry.globalStart);
+    }
 
-    this.injectStyles();
+    this.useCssHighlights = canUseCssHighlights();
+
+    if (this.useCssHighlights) {
+      this.hoverHighlight = new Highlight();
+      this.hoverHighlight.priority = 2;
+      CSS.highlights.set(HOVER_HIGHLIGHT, this.hoverHighlight);
+      this.root.addEventListener('mousemove', this.handleMouseMove);
+    }
+
     this.root.addEventListener('click', this.handleClick);
-    this.root.addEventListener('mousemove', this.handleMouseMove);
   }
 
   updateSentences(sentences: GlobalSentenceBoundary[]): void {
@@ -44,10 +58,13 @@ export class SentenceClickHandler {
   destroy(): void {
     this.root.removeEventListener('click', this.handleClick);
     this.root.removeEventListener('mousemove', this.handleMouseMove);
-    CSS.highlights.delete(HOVER_HIGHLIGHT);
-    this.hoverHighlight.clear();
-    this.styleEl?.remove();
-    this.styleEl = null;
+
+    if (this.useCssHighlights) {
+      CSS.highlights.delete(HOVER_HIGHLIGHT);
+      this.hoverHighlight?.clear();
+      this.hoverHighlight = null;
+    }
+
     if (this.throttleTimer !== null) {
       cancelAnimationFrame(this.throttleTimer);
       this.throttleTimer = null;
@@ -76,7 +93,9 @@ export class SentenceClickHandler {
   };
 
   private handleMouseMove = (e: Event): void => {
-    // Throttle to ~30fps
+    if (!this.useCssHighlights || !this.hoverHighlight) return;
+
+    // Throttle to ~60fps (per rAF)
     if (this.throttleTimer !== null) return;
     this.throttleTimer = requestAnimationFrame(() => {
       this.throttleTimer = null;
@@ -84,7 +103,7 @@ export class SentenceClickHandler {
       const globalOffset = this.getGlobalOffsetFromPoint(mouseEvent.clientX, mouseEvent.clientY);
       if (globalOffset === null) {
         if (this.lastHoveredIndex !== -1) {
-          this.hoverHighlight.clear();
+          this.hoverHighlight!.clear();
           this.lastHoveredIndex = -1;
         }
         return;
@@ -94,40 +113,90 @@ export class SentenceClickHandler {
       if (sentenceIndex === this.lastHoveredIndex) return;
       this.lastHoveredIndex = sentenceIndex;
 
-      this.hoverHighlight.clear();
+      this.hoverHighlight!.clear();
       if (sentenceIndex >= 0) {
         const sentence = this.sentences[sentenceIndex];
         const range = this.createRange(sentence.startOffset, sentence.endOffset);
         if (range) {
-          this.hoverHighlight.add(range);
+          this.hoverHighlight!.add(range);
         }
       }
     });
   };
 
   private getGlobalOffsetFromPoint(x: number, y: number): number | null {
-    // Use caretRangeFromPoint (or caretPositionFromPoint) to map click to text position
-    let range: Range | null = null;
+    const caret = this.getCaretAtPoint(x, y);
+    if (!caret) return null;
 
-    if (document.caretRangeFromPoint) {
-      range = document.caretRangeFromPoint(x, y);
+    const base = this.nodeStartMap.get(caret.node);
+    if (base === undefined) return null;
+    return base + caret.offset;
+  }
+
+  private getCaretAtPoint(x: number, y: number): { node: Text; offset: number } | null {
+    // Prefer caretPositionFromPoint when available
+    if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(x, y);
+      if (!pos) return null;
+      return this.resolveTextNode(pos.offsetNode, pos.offset);
     }
 
-    if (!range) return null;
-    const node = range.startContainer;
-    if (node.nodeType !== Node.TEXT_NODE) return null;
+    if (document.caretRangeFromPoint) {
+      const range = document.caretRangeFromPoint(x, y);
+      if (!range) return null;
+      return this.resolveTextNode(range.startContainer, range.startOffset);
+    }
 
-    // Find this text node in entries via binary search
-    const localOffset = range.startOffset;
-    const textNode = node as Text;
+    return null;
+  }
 
-    for (const entry of this.entries) {
-      if (entry.node === textNode) {
-        return entry.globalStart + localOffset;
+  private resolveTextNode(node: Node | null, offset: number): { node: Text; offset: number } | null {
+    if (!node) return null;
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      return { node: node as Text, offset };
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    const el = node as Element;
+
+    const childAtOffset =
+      offset >= 0 && offset < el.childNodes.length ? el.childNodes[offset] : null;
+    if (childAtOffset) {
+      const first = this.findFirstTextNode(childAtOffset);
+      if (first) return { node: first, offset: 0 };
+    }
+
+    const prevChild =
+      offset > 0 && offset - 1 < el.childNodes.length ? el.childNodes[offset - 1] : null;
+    if (prevChild) {
+      const last = this.findLastTextNode(prevChild);
+      if (last) {
+        const len = last.textContent?.length ?? 0;
+        return { node: last, offset: len };
       }
     }
 
     return null;
+  }
+
+  private findFirstTextNode(node: Node): Text | null {
+    if (node.nodeType === Node.TEXT_NODE) return node as Text;
+
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    return walker.nextNode() as Text | null;
+  }
+
+  private findLastTextNode(node: Node): Text | null {
+    if (node.nodeType === Node.TEXT_NODE) return node as Text;
+
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let last: Text | null = null;
+    let current: Node | null;
+    while ((current = walker.nextNode())) {
+      last = current as Text;
+    }
+    return last;
   }
 
   private findSentenceAtOffset(globalOffset: number): GlobalSentenceBoundary | null {
@@ -136,11 +205,22 @@ export class SentenceClickHandler {
   }
 
   private findSentenceIndexAtOffset(globalOffset: number): number {
-    for (let i = 0; i < this.sentences.length; i++) {
-      if (globalOffset >= this.sentences[i].startOffset && globalOffset < this.sentences[i].endOffset) {
-        return i;
+    let lo = 0;
+    let hi = this.sentences.length - 1;
+
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1;
+      const s = this.sentences[mid];
+
+      if (globalOffset < s.startOffset) {
+        hi = mid - 1;
+      } else if (globalOffset >= s.endOffset) {
+        lo = mid + 1;
+      } else {
+        return mid;
       }
     }
+
     return -1;
   }
 
@@ -188,21 +268,5 @@ export class SentenceClickHandler {
 
     return null;
   }
-
-  private injectStyles(): void {
-    if (document.getElementById('ir-hover-styles')) {
-      this.styleEl = document.getElementById('ir-hover-styles') as HTMLStyleElement;
-      return;
-    }
-
-    const style = document.createElement('style');
-    style.id = 'ir-hover-styles';
-    style.textContent = `
-      ::highlight(${HOVER_HIGHLIGHT}) {
-        background-color: rgba(59, 130, 246, 0.08);
-      }
-    `;
-    document.head.appendChild(style);
-    this.styleEl = style;
-  }
 }
+

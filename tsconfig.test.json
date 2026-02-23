@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".tmp-tests",
+    "rootDir": "."
+  },
+  "include": [
+    "src/shared/**/*.ts",
+    "src/content/extraction/**/*.ts"
+  ]
+}
+

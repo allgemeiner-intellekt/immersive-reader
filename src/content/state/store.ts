@@ -9,14 +9,12 @@ interface Store {
   segments: Segment[];
   textNodeMap: TextNodeEntry[];
   error: string | null;
-  pendingPlaybackElement: Element | null;
 
   setSettings: (settings: Partial<TTSSettings>) => void;
   setPlayback: (playback: Partial<PlaybackState>) => void;
   setSegments: (segments: Segment[]) => void;
   setTextNodeMap: (map: TextNodeEntry[]) => void;
   setError: (error: string | null) => void;
-  setPendingPlaybackElement: (el: Element | null) => void;
   loadPersistedSettings: () => Promise<void>;
 }
 
@@ -37,7 +35,6 @@ export const useStore = create<Store>((set, get) => ({
   segments: [],
   textNodeMap: [],
   error: null,
-  pendingPlaybackElement: null,
 
   setSettings: (partial) => {
     const updated = { ...get().settings, ...partial };
@@ -52,7 +49,6 @@ export const useStore = create<Store>((set, get) => ({
   setSegments: (segments) => set({ segments }),
   setTextNodeMap: (textNodeMap) => set({ textNodeMap }),
   setError: (error) => set({ error }),
-  setPendingPlaybackElement: (pendingPlaybackElement) => set({ pendingPlaybackElement }),
 
   loadPersistedSettings: async () => {
     const settings = await loadSettings();

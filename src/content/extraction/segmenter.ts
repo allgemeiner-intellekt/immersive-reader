@@ -18,66 +18,54 @@ export function segmentText(text: string): Segment[] {
     if (paraStart === -1) continue;
 
     const sentences = splitSentenceStrings(paragraph);
-    let sentenceGroup: string[] = [];
+    let groupText = '';
+    let groupSentenceCount = 0;
     let groupStart = paraStart;
 
     for (const sentence of sentences) {
-      sentenceGroup.push(sentence);
+      groupText += sentence;
+      groupSentenceCount++;
 
-      if (sentenceGroup.length >= SENTENCES_PER_SEGMENT) {
-        const groupText = sentenceGroup.join('');
-        if (groupText.trim().length >= SEGMENT_MIN_CHARS) {
-          segments.push({
-            id: segmentId++,
-            text: groupText.trim(),
-            startOffset: groupStart,
-            endOffset: groupStart + groupText.length,
-            wordCount: countWords(groupText),
-          });
-        }
+      const reachedSentenceTarget = groupSentenceCount >= SENTENCES_PER_SEGMENT;
+      const reachedMaxChars = groupText.length >= SEGMENT_MAX_CHARS;
+      const longEnough = groupText.trim().length >= SEGMENT_MIN_CHARS;
+
+      if ((reachedSentenceTarget && longEnough) || reachedMaxChars) {
+        segments.push({
+          id: segmentId++,
+          text: groupText,
+          startOffset: groupStart,
+          endOffset: groupStart + groupText.length,
+          wordCount: countWords(groupText),
+        });
         groupStart = groupStart + groupText.length;
-        sentenceGroup = [];
-      }
-
-      // Enforce max chars
-      const currentText = sentenceGroup.join('');
-      if (currentText.length >= SEGMENT_MAX_CHARS) {
-        if (currentText.trim().length >= SEGMENT_MIN_CHARS) {
-          segments.push({
-            id: segmentId++,
-            text: currentText.trim(),
-            startOffset: groupStart,
-            endOffset: groupStart + currentText.length,
-            wordCount: countWords(currentText),
-          });
-        }
-        groupStart = groupStart + currentText.length;
-        sentenceGroup = [];
+        groupText = '';
+        groupSentenceCount = 0;
       }
     }
 
     // Remaining sentences in this paragraph
-    if (sentenceGroup.length > 0) {
-      const groupText = sentenceGroup.join('');
+    if (groupText.length > 0) {
       if (groupText.trim().length >= SEGMENT_MIN_CHARS) {
         segments.push({
           id: segmentId++,
-          text: groupText.trim(),
+          text: groupText,
           startOffset: groupStart,
           endOffset: groupStart + groupText.length,
           wordCount: countWords(groupText),
         });
       } else if (segments.length > 0) {
-        // Merge with previous segment if too short
+        // Merge with previous segment if too short (preserve exact source text)
         const prev = segments[segments.length - 1];
-        prev.text += ' ' + groupText.trim();
+        const gap = text.slice(prev.endOffset, groupStart);
+        prev.text += gap + groupText;
         prev.endOffset = groupStart + groupText.length;
         prev.wordCount = countWords(prev.text);
       } else if (groupText.trim().length > 0) {
         // First segment, even if short
         segments.push({
           id: segmentId++,
-          text: groupText.trim(),
+          text: groupText,
           startOffset: groupStart,
           endOffset: groupStart + groupText.length,
           wordCount: countWords(groupText),
