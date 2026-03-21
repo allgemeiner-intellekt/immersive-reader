@@ -441,20 +441,6 @@ export function App({ shadowRoot }: AppProps) {
     }
   }, [setPlayback, advanceToNextSegment]);
 
-  // Spacebar pause/resume
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.code !== 'Space') return;
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if ((e.target as HTMLElement)?.isContentEditable) return;
-      e.preventDefault();
-      togglePause();
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [togglePause]);
-
   const skipForward = useCallback(() => {
     advanceToNextSegment();
   }, [advanceToNextSegment]);
@@ -476,6 +462,45 @@ export function App({ shadowRoot }: AppProps) {
 
     sendPlaySegment(segs[prevIndex], prevIndex);
   }, [setPlayback, sendPlaySegment]);
+
+  // Keyboard shortcuts: Space (pause/resume), ←/→ (skip), Escape (stop)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isEditable =
+        tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+        (e.target as HTMLElement)?.isContentEditable;
+
+      switch (e.code) {
+        case 'Space':
+          if (isEditable) return;
+          e.preventDefault();
+          togglePause();
+          break;
+
+        case 'ArrowLeft':
+          if (isEditable || !useStore.getState().playback.isPlaying) return;
+          e.preventDefault();
+          skipBack();
+          break;
+
+        case 'ArrowRight':
+          if (isEditable || !useStore.getState().playback.isPlaying) return;
+          e.preventDefault();
+          skipForward();
+          break;
+
+        case 'Escape':
+          if (useStore.getState().playback.isPlaying) {
+            e.preventDefault();
+            stopPlayback();
+          }
+          break;
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [togglePause, skipBack, skipForward, stopPlayback]);
 
   if (!playback.isPlaying) return null;
 

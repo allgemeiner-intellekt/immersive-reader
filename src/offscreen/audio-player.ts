@@ -114,26 +114,56 @@ export class AudioPlayer {
       headers['Authorization'] = `Bearer ${settings.apiKey}`;
     }
 
-    const response = await fetch(`${settings.apiUrl}/v1/audio/speech`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: settings.model,
-        input: text,
-        voice: settings.voice,
-        speed: settings.speed,
-        response_format: 'mp3',
-      }),
-      signal,
-    });
+    const MAX_RETRIES = 3;
+    const TIMEOUT_MS = 45_000;
 
-    if (!response.ok) {
-      throw new Error(
-        `TTS API error: ${response.status} ${response.statusText}`
-      );
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const timeoutController = new AbortController();
+      const timer = setTimeout(() => timeoutController.abort(), TIMEOUT_MS);
+
+      // Combine caller's abort signal with our timeout
+      const combinedController = new AbortController();
+      const propagate = () => combinedController.abort();
+      signal.addEventListener('abort', propagate, { once: true });
+      timeoutController.signal.addEventListener('abort', propagate, { once: true });
+
+      try {
+        const response = await fetch(`${settings.apiUrl}/v1/audio/speech`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: settings.model,
+            input: text,
+            voice: settings.voice,
+            speed: settings.speed,
+            response_format: 'mp3',
+          }),
+          signal: combinedController.signal,
+        });
+
+        clearTimeout(timer);
+        signal.removeEventListener('abort', propagate);
+
+        if (!response.ok) {
+          throw new Error(`TTS API error: ${response.status} ${response.statusText}`);
+        }
+
+        return response;
+      } catch (err) {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', propagate);
+
+        // User-initiated abort — never retry
+        if (signal.aborted) throw err;
+
+        if (attempt === MAX_RETRIES) throw err;
+
+        await new Promise((r) => setTimeout(r, 450 * attempt));
+      }
     }
 
-    return response;
+    // unreachable, but satisfies TypeScript
+    throw new Error('fetchTTS: exhausted retries');
   }
 
   private async streamToMSE(

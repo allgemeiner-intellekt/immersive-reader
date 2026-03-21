@@ -12,9 +12,9 @@ export const SPEED_MIN = 0.5;
 export const SPEED_MAX = 2.0;
 export const SPEED_STEP = 0.1;
 
-export const SEGMENT_MIN_CHARS = 50;
-export const SEGMENT_MAX_CHARS = 2000;
-export const SENTENCES_PER_SEGMENT = 2;
+export const SEGMENT_MIN_CHARS = 30;
+export const SEGMENT_MAX_CHARS = 500;
+export const SENTENCES_PER_SEGMENT = 1;
 
 export const PROGRESS_REPORT_INTERVAL_MS = 100;
 

@@ -42,6 +42,8 @@ export function FloatingPlayer({
   playback,
   error,
   onTogglePause,
+  onSkipForward,
+  onSkipBack,
   onStop,
   onRetry,
   onDismissError,
@@ -87,7 +89,13 @@ export function FloatingPlayer({
         isPaused={playback.isPaused}
         onTogglePause={onTogglePause}
       />
-      <PlayerControls onStop={onStop} />
+      <PlayerControls
+        onStop={onStop}
+        onSkipBack={onSkipBack}
+        onSkipForward={onSkipForward}
+        canSkipBack={playback.currentSegmentIndex > 0}
+        canSkipForward={playback.currentSegmentIndex < playback.totalSegments - 1}
+      />
       <SpeedControl />
     </div>
   );

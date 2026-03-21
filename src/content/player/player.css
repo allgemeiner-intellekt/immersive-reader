@@ -169,6 +169,14 @@
   color: #888888;
 }
 
+/* Controls row (prev / stop / next) */
+.ir-controls-row {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  align-items: center;
+}
+
 /* Stop button */
 .ir-btn-stop {
   color: #888888;
@@ -177,6 +185,23 @@
 .ir-btn-stop:hover {
   color: #1A1A1A;
   background: #FEE;
+}
+
+/* Nav buttons (prev / next) */
+.ir-btn-nav {
+  color: #888888;
+  width: 28px;
+  height: 28px;
+}
+
+.ir-btn-nav:hover:not(:disabled) {
+  color: #1A1A1A;
+  background: #F0F0F0;
+}
+
+.ir-btn-nav:disabled {
+  color: #CCCCCC;
+  cursor: default;
 }
 
 /* Error toast */
