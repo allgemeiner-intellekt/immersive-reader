@@ -83,6 +83,14 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
       // Always init highlighting — fallback to document.body if no source element
       highlightManager.init(sourceEl ?? document.body);
 
+      // Recompute chunk offsets against the DOM text map so highlighting
+      // aligns with actual text node positions (Readability's textContent
+      // may differ from the live DOM, causing partial-word highlights).
+      const domText = highlightManager.getFullText();
+      if (domText) {
+        recomputeChunkOffsets(currentChunks, domText);
+      }
+
       if (settings.highlight.autoScroll) {
         initAutoScroll();
       }
@@ -180,6 +188,52 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     default:
       return { ok: true };
   }
+}
+
+/**
+ * Recompute chunk startOffset/endOffset so they refer to positions in `domText`
+ * (the concatenated DOM text node map) rather than Readability's textContent.
+ * Uses fuzzy matching: for each chunk, search for its text (or a normalised
+ * version) in the DOM text near the expected position.
+ */
+function recomputeChunkOffsets(chunks: TextChunk[], domText: string): void {
+  let searchFrom = 0;
+
+  for (const chunk of chunks) {
+    // Try exact match first
+    let idx = domText.indexOf(chunk.text, searchFrom);
+
+    if (idx < 0) {
+      // Normalise whitespace and try again (DOM text nodes may have different
+      // whitespace than Readability output)
+      const normChunk = chunk.text.replace(/\s+/g, ' ').trim();
+      // Build a regex that matches the chunk words with flexible whitespace
+      const words = normChunk.split(' ');
+      const pattern = words.map((w) => escapeRegExp(w)).join('\\s+');
+      const re = new RegExp(pattern);
+      const sub = domText.slice(searchFrom);
+      const m = re.exec(sub);
+      if (m) {
+        idx = searchFrom + m.index;
+        // Use the matched length (may differ from chunk.text.length due to whitespace)
+        chunk.startOffset = idx;
+        chunk.endOffset = idx + m[0].length;
+        searchFrom = chunk.endOffset;
+        continue;
+      }
+    }
+
+    if (idx >= 0) {
+      chunk.startOffset = idx;
+      chunk.endOffset = idx + chunk.text.length;
+      searchFrom = chunk.endOffset;
+    }
+    // If neither match works, keep the original offsets as a last resort
+  }
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**

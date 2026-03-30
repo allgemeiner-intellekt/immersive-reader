@@ -13,6 +13,8 @@ let currentWords: string[] = [];
 let currentWordIndex = 0;
 let currentRealTimings: SimpleWordTiming[] | null = null;
 let audioDuration = 0;
+// Pre-computed cumulative character fractions for weighted interpolation
+let cumulativeCharFractions: number[] = [];
 
 export function startWordTimingRelay(
   tabId: number,
@@ -33,6 +35,16 @@ export function startWordTimingRelay(
   } else {
     currentRealTimings = null;
   }
+
+  // Pre-compute cumulative character fractions for weighted interpolation.
+  // Each word's "weight" is its character count, so longer words get more time.
+  const totalChars = currentWords.reduce((sum, w) => sum + w.length, 0);
+  cumulativeCharFractions = [];
+  let cumulative = 0;
+  for (const w of currentWords) {
+    cumulative += w.length / (totalChars || 1);
+    cumulativeCharFractions.push(cumulative);
+  }
 }
 
 export function stopWordTimingRelay(): void {
@@ -42,6 +54,7 @@ export function stopWordTimingRelay(): void {
   currentWordIndex = 0;
   currentRealTimings = null;
   audioDuration = 0;
+  cumulativeCharFractions = [];
 }
 
 /**
@@ -79,23 +92,31 @@ export function onPlaybackProgress(
       currentWordIndex++;
     }
   } else if (audioDuration > 0) {
-    // Interpolate based on actual audio duration and current playback time
-    const progress = currentTime / audioDuration;
-    const expectedWordIndex = Math.min(
-      Math.floor(progress * currentWords.length),
-      currentWords.length - 1,
-    );
+    // Interpolate using character-weighted word durations so longer words
+    // get proportionally more time (instead of uniform distribution which
+    // causes highlighting to race ahead of short words).
+    const progress = Math.min(currentTime / audioDuration, 1);
 
-    const wordDuration = audioDuration / currentWords.length;
+    // Find the expected word index using cumulative character fractions
+    let expectedWordIndex = 0;
+    for (let i = 0; i < cumulativeCharFractions.length; i++) {
+      if (progress < cumulativeCharFractions[i]) {
+        expectedWordIndex = i;
+        break;
+      }
+      expectedWordIndex = i;
+    }
 
     while (currentWordIndex <= expectedWordIndex) {
+      const startFrac = currentWordIndex > 0 ? cumulativeCharFractions[currentWordIndex - 1] : 0;
+      const endFrac = cumulativeCharFractions[currentWordIndex];
       sendTabMessage(currentTabId, {
         type: MSG.WORD_TIMING,
         chunkIndex: currentChunkIndex,
         wordIndex: currentWordIndex,
         word: currentWords[currentWordIndex],
-        startTime: currentWordIndex * wordDuration,
-        endTime: (currentWordIndex + 1) * wordDuration,
+        startTime: startFrac * audioDuration,
+        endTime: endFrac * audioDuration,
       }).catch(() => {});
       currentWordIndex++;
     }

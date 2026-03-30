@@ -95,6 +95,14 @@ export class HighlightManager {
     }
   }
 
+  /**
+   * Return the concatenated plain text from the DOM text node map.
+   */
+  getFullText(): string {
+    if (!this.textMap) return '';
+    return this.textMap.text;
+  }
+
   clearAll(): void {
     this.clearWordHighlight();
     this.clearSentenceHighlight();
