@@ -26,6 +26,22 @@ export function getProvider(providerId: string): TTSProvider {
   return provider;
 }
 
+export interface ChunkLimits {
+  minWords: number;
+  maxWords: number;
+  splitThreshold: number;
+}
+
+export function getChunkLimits(providerId: string): ChunkLimits {
+  switch (providerId) {
+    case 'groq':
+      return { minWords: 15, maxWords: 25, splitThreshold: 50 };
+    default:
+      // Cloud providers benefit from larger chunks (better prosody, fewer API calls)
+      return { minWords: 30, maxWords: 50, splitThreshold: 80 };
+  }
+}
+
 export const PROVIDER_LIST: ProviderMeta[] = [
   {
     id: 'openai',

@@ -1,9 +1,13 @@
 import type { TextChunk } from '@shared/types';
 import { splitSentenceStrings } from '../content/extraction/sentence-splitter';
 
-const TARGET_MIN_WORDS = 15;
-const TARGET_MAX_WORDS = 25;
-const MAX_WORDS_BEFORE_SPLIT = 50;
+export interface ChunkConfig {
+  minWords: number;
+  maxWords: number;
+  splitThreshold: number;
+}
+
+const DEFAULT_CONFIG: ChunkConfig = { minWords: 15, maxWords: 25, splitThreshold: 50 };
 const MIN_WORDS_FOR_STANDALONE = 5;
 
 function countWords(text: string): number {
@@ -13,7 +17,7 @@ function countWords(text: string): number {
 /**
  * Split a long sentence at clause boundaries (comma, semicolon, em-dash).
  */
-function splitAtClauseBoundary(text: string): string[] {
+function splitAtClauseBoundary(text: string, maxWords: number): string[] {
   // Split at comma/semicolon/em-dash followed by a space
   const parts = text.split(/(?<=[,;\u2014])\s+/);
   if (parts.length <= 1) return [text];
@@ -24,7 +28,7 @@ function splitAtClauseBoundary(text: string): string[] {
 
   for (const part of parts) {
     const combined = current ? `${current} ${part}` : part;
-    if (countWords(combined) > TARGET_MAX_WORDS && current) {
+    if (countWords(combined) > maxWords && current) {
       merged.push(current.trim());
       current = part;
     } else {
@@ -45,9 +49,10 @@ function splitAtClauseBoundary(text: string): string[] {
  * 3. Merge short sentences, split long ones
  * 4. Target 15-25 words per chunk
  */
-export function chunkText(text: string): TextChunk[] {
+export function chunkText(text: string, config: ChunkConfig = DEFAULT_CONFIG): TextChunk[] {
   if (!text.trim()) return [];
 
+  const { minWords, maxWords, splitThreshold } = config;
   const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim());
   const rawChunks: string[] = [];
 
@@ -60,12 +65,12 @@ export function chunkText(text: string): TextChunk[] {
       const sentenceWords = countWords(sentence);
 
       // Very long sentence: split at clause boundary
-      if (sentenceWords > MAX_WORDS_BEFORE_SPLIT) {
+      if (sentenceWords > splitThreshold) {
         if (buffer.trim()) {
           rawChunks.push(buffer.trim());
           buffer = '';
         }
-        const clauses = splitAtClauseBoundary(sentence);
+        const clauses = splitAtClauseBoundary(sentence, maxWords);
         for (const clause of clauses) {
           rawChunks.push(clause);
         }
@@ -75,7 +80,7 @@ export function chunkText(text: string): TextChunk[] {
       // Short sentence: try to merge with buffer
       if (sentenceWords < MIN_WORDS_FOR_STANDALONE) {
         buffer = buffer ? `${buffer} ${sentence}` : sentence;
-        if (countWords(buffer) >= TARGET_MIN_WORDS) {
+        if (countWords(buffer) >= minWords) {
           rawChunks.push(buffer.trim());
           buffer = '';
         }
@@ -86,9 +91,9 @@ export function chunkText(text: string): TextChunk[] {
       const combined = buffer ? `${buffer} ${sentence}` : sentence;
       const combinedWords = countWords(combined);
 
-      if (combinedWords <= TARGET_MAX_WORDS) {
+      if (combinedWords <= maxWords) {
         buffer = combined;
-        if (combinedWords >= TARGET_MIN_WORDS) {
+        if (combinedWords >= minWords) {
           rawChunks.push(buffer.trim());
           buffer = '';
         }

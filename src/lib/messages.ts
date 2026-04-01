@@ -17,6 +17,7 @@ export const MSG = {
   OFFSCREEN_PAUSE: 'OFFSCREEN_PAUSE',
   OFFSCREEN_RESUME: 'OFFSCREEN_RESUME',
   OFFSCREEN_STOP: 'OFFSCREEN_STOP',
+  OFFSCREEN_SCHEDULE_NEXT: 'OFFSCREEN_SCHEDULE_NEXT',
   OFFSCREEN_SET_SPEED: 'OFFSCREEN_SET_SPEED',
   OFFSCREEN_SET_VOLUME: 'OFFSCREEN_SET_VOLUME',
 
@@ -47,6 +48,10 @@ export const MSG = {
   GET_PROVIDER_HEALTH: 'GET_PROVIDER_HEALTH',
   RESET_PROVIDER_HEALTH: 'RESET_PROVIDER_HEALTH',
   FAILOVER_NOTICE: 'FAILOVER_NOTICE',
+
+  // Reading Progress
+  GET_PAGE_URL: 'GET_PAGE_URL',
+  RESUME_FROM_PROGRESS: 'RESUME_FROM_PROGRESS',
 
   // Settings
   SETTINGS_CHANGED: 'SETTINGS_CHANGED',
@@ -99,6 +104,13 @@ export interface GetStateMessage {
 
 export interface OffscreenPlayMessage {
   type: typeof MSG.OFFSCREEN_PLAY;
+  audioBase64: string;
+  chunkIndex: number;
+  format: string;
+}
+
+export interface OffscreenScheduleNextMessage {
+  type: typeof MSG.OFFSCREEN_SCHEDULE_NEXT;
   audioBase64: string;
   chunkIndex: number;
   format: string;
@@ -160,6 +172,7 @@ export interface WordTimingMessage {
 export interface ExtractContentMessage {
   type: typeof MSG.EXTRACT_CONTENT;
   fromSelection?: boolean;
+  chunkConfig?: { minWords: number; maxWords: number; splitThreshold: number };
 }
 
 export interface GetChunkMessage {
@@ -226,6 +239,17 @@ export interface FailoverNoticeMessage {
   toConfigName: string;
 }
 
+// --- Reading Progress Messages ---
+
+export interface GetPageUrlMessage {
+  type: typeof MSG.GET_PAGE_URL;
+}
+
+export interface ResumeFromProgressMessage {
+  type: typeof MSG.RESUME_FROM_PROGRESS;
+  chunkIndex: number;
+}
+
 // --- Settings Messages ---
 
 export interface SettingsChangedMessage {
@@ -244,6 +268,7 @@ export type ExtensionMessage =
   | SetVolumeMessage
   | GetStateMessage
   | OffscreenPlayMessage
+  | OffscreenScheduleNextMessage
   | OffscreenPauseMessage
   | OffscreenResumeMessage
   | OffscreenStopMessage
@@ -265,6 +290,8 @@ export type ExtensionMessage =
   | GetProviderHealthMessage
   | ResetProviderHealthMessage
   | FailoverNoticeMessage
+  | GetPageUrlMessage
+  | ResumeFromProgressMessage
   | SettingsChangedMessage;
 
 // Helper to send a message and get a typed response

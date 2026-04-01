@@ -36,7 +36,9 @@ function isContentMessage(message: ExtensionMessage): boolean {
     message.type === MSG.PLAYBACK_ERROR ||
     message.type === MSG.START_READING ||
     message.type === MSG.STOP ||
-    message.type === MSG.FAILOVER_NOTICE
+    message.type === MSG.FAILOVER_NOTICE ||
+    message.type === MSG.GET_PAGE_URL ||
+    message.type === MSG.RESUME_FROM_PROGRESS
   );
 }
 
@@ -89,7 +91,7 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
         sourceEl = result.sourceElement;
       }
 
-      currentChunks = chunkText(textContent);
+      currentChunks = chunkText(textContent, message.chunkConfig);
       currentTitle = title;
 
       store._setTotalChunks(currentChunks.length);
@@ -207,6 +209,17 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     case MSG.FAILOVER_NOTICE: {
       if ('toConfigName' in message) {
         store._showToast(`Switched to backup key: ${message.toConfigName}`);
+      }
+      return { ok: true };
+    }
+
+    case MSG.GET_PAGE_URL: {
+      return window.location.href;
+    }
+
+    case MSG.RESUME_FROM_PROGRESS: {
+      if ('chunkIndex' in message) {
+        store._showToast(`Resuming from where you left off`);
       }
       return { ok: true };
     }

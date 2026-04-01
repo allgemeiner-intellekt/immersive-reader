@@ -55,6 +55,7 @@ export const groqProvider: TTSProvider = {
     let response: Response;
     try {
       response = await fetch(buildOpenAICompatibleUrl(baseUrl, '/audio/speech'), {
+        signal: AbortSignal.timeout(30_000),
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,
@@ -74,7 +75,7 @@ export const groqProvider: TTSProvider = {
       if (response.status === 429) {
         throw new ApiError('Rate limit exceeded. Please try again later.', 429, 'groq', true);
       }
-      throw ApiError.fromResponse(response.status, errBody || response.statusText, 'groq');
+      throw ApiError.fromResponse(response.status, errBody || response.statusText, 'groq', response.headers);
     }
 
     const audioData = await response.arrayBuffer();

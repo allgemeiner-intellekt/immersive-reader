@@ -34,16 +34,22 @@ describe('elevenlabsProvider', () => {
   });
 
   it('uses eleven_multilingual_v2 by default for synthesis', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(8),
-    });
+    const fetchMock = vi.fn()
+      // First call: /with-timestamps fails (not all plans support it)
+      .mockResolvedValueOnce({ ok: false, status: 400, text: async () => 'not supported' })
+      // Second call: /stream succeeds
+      .mockResolvedValueOnce({
+        ok: true,
+        arrayBuffer: async () => new ArrayBuffer(8),
+        headers: new Headers(),
+      });
     vi.stubGlobal('fetch', fetchMock);
 
     await elevenlabsProvider.synthesize('hello', TEST_VOICE, TEST_CONFIG);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Verify the /stream call uses the correct model
+    const [, requestInit] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(JSON.parse(String(requestInit.body))).toMatchObject({
       text: 'hello',
       model_id: 'eleven_multilingual_v2',
@@ -51,17 +57,22 @@ describe('elevenlabsProvider', () => {
   });
 
   it('surfaces ElevenLabs error details for 401 synthesis failures', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      text: async () =>
-        JSON.stringify({
-          detail: {
-            status: 'invalid_api_key',
-            message: 'A valid API key is required.',
-          },
-        }),
-    });
+    const fetchMock = vi.fn()
+      // First call: /with-timestamps fails
+      .mockResolvedValueOnce({ ok: false, status: 400, text: async () => 'not supported' })
+      // Second call: /stream returns 401
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: async () =>
+          JSON.stringify({
+            detail: {
+              status: 'invalid_api_key',
+              message: 'A valid API key is required.',
+            },
+          }),
+        headers: new Headers(),
+      });
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(

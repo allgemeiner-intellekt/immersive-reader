@@ -1,7 +1,8 @@
 import { MSG, sendTabMessage, type ExtensionMessage } from '@shared/messages';
 import type { ProviderConfig, Voice, TextChunk } from '@shared/types';
 import { getProvider } from '@providers/registry';
-import { getActiveProvider, getSettings } from '@shared/storage';
+import { getActiveProvider, getSettings, saveProgress, getProgress, clearProgress } from '@shared/storage';
+import { getChunkLimits } from '@providers/registry';
 import { playbackState } from './playback-state';
 import { ensureOffscreenDocument } from './offscreen-manager';
 import { startWordTimingRelay, stopWordTimingRelay, onPlaybackProgress } from './word-timing';
@@ -23,6 +24,7 @@ interface SynthesizedChunk {
 
 let activeTabId: number | null = null;
 const prefetchCache = new Map<number, SynthesizedChunk>();
+const MAX_CACHE_SIZE = 8;
 let abortController: AbortController | null = null;
 
 // Session binding — locks provider + voice for the duration of a playback session
@@ -47,6 +49,17 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+// Evict cache entries furthest from current playback position
+function evictCache(currentIndex: number): void {
+  if (prefetchCache.size <= MAX_CACHE_SIZE) return;
+  const entries = [...prefetchCache.keys()].sort(
+    (a, b) => Math.abs(b - currentIndex) - Math.abs(a - currentIndex),
+  );
+  while (prefetchCache.size > MAX_CACHE_SIZE && entries.length > 0) {
+    prefetchCache.delete(entries.shift()!);
+  }
 }
 
 // Send a message to the offscreen document (uses OFFSCREEN_ prefix to avoid routing loops)
@@ -150,7 +163,8 @@ export async function startPlayback(tabId: number, fromSelection = false): Promi
     error?: string;
   };
   try {
-    extractResult = await sendTabMessage(tabId, { type: MSG.EXTRACT_CONTENT, fromSelection });
+    const chunkConfig = currentSession ? getChunkLimits(currentSession.providerId) : undefined;
+    extractResult = await sendTabMessage(tabId, { type: MSG.EXTRACT_CONTENT, fromSelection, chunkConfig });
   } catch (err) {
     playbackState.setStatus('idle');
     console.error('Failed to extract content:', err);
@@ -163,13 +177,32 @@ export async function startPlayback(tabId: number, fromSelection = false): Promi
     return;
   }
 
+  // Check for saved reading progress
+  let startIndex = 0;
+  let pageUrl: string | undefined;
+  try {
+    pageUrl = await sendTabMessage<string>(tabId, { type: MSG.GET_PAGE_URL });
+  } catch {
+    // Content script may not respond
+  }
+  if (pageUrl && !fromSelection) {
+    const saved = await getProgress(pageUrl);
+    if (saved && saved.chunkIndex > 0 && saved.chunkIndex < extractResult.totalChunks) {
+      startIndex = saved.chunkIndex;
+      sendTabMessage(tabId, {
+        type: MSG.RESUME_FROM_PROGRESS,
+        chunkIndex: startIndex,
+      } as ExtensionMessage).catch(() => {});
+    }
+  }
+
   playbackState.update({
     totalChunks: extractResult.totalChunks,
-    currentChunkIndex: 0,
+    currentChunkIndex: startIndex,
   });
 
   // Step 2: Start the playback loop
-  await playChunksSequentially(tabId, 0, extractResult.totalChunks);
+  await playChunksSequentially(tabId, startIndex, extractResult.totalChunks, pageUrl);
 }
 
 export async function resumePlayback(): Promise<void> {
@@ -241,6 +274,7 @@ async function playChunksSequentially(
   tabId: number,
   startIndex: number,
   totalChunks: number,
+  pageUrl?: string,
 ): Promise<void> {
   const signal = abortController?.signal;
 
@@ -249,12 +283,11 @@ async function playChunksSequentially(
 
     playbackState.update({ currentChunkIndex: i, status: 'loading' });
 
-    // Synthesize current chunk (or use prefetched)
+    // Synthesize current chunk (or use cached — kept for backward skip)
     let synthesized: SynthesizedChunk;
     const cached = prefetchCache.get(i);
     if (cached) {
       synthesized = cached;
-      prefetchCache.delete(i);
     } else {
       try {
         synthesized = await synthesizeChunkWithFailover(tabId, i);
@@ -276,6 +309,11 @@ async function playChunksSequentially(
 
     if (signal?.aborted) return;
 
+    // Cache current chunk result for backward skip
+    if (!prefetchCache.has(i)) {
+      prefetchCache.set(i, synthesized);
+    }
+
     // Start prefetching next chunks (tagged with generation to discard stale results)
     const gen = sessionGeneration;
     for (let j = 1; j <= LOOKAHEAD_BUFFER_SIZE; j++) {
@@ -292,10 +330,15 @@ async function playChunksSequentially(
       }
     }
 
+    // Evict cache entries furthest from current position
+    evictCache(i);
+
     // Send audio to offscreen as base64 (ArrayBuffer can't be serialized in Chrome messages)
+    // Use OFFSCREEN_SCHEDULE_NEXT for gapless playback after the first chunk
     playbackState.setStatus('playing');
+    const offscreenMsg = i === startIndex ? MSG.OFFSCREEN_PLAY : MSG.OFFSCREEN_SCHEDULE_NEXT;
     await sendToOffscreen({
-      type: MSG.OFFSCREEN_PLAY,
+      type: offscreenMsg,
       audioBase64: synthesized.audioBase64,
       chunkIndex: i,
       format: synthesized.format,
@@ -319,9 +362,17 @@ async function playChunksSequentially(
     await waitForChunkComplete(i, signal);
 
     if (signal?.aborted) return;
+
+    // Save reading progress
+    if (pageUrl) {
+      saveProgress({ url: pageUrl, chunkIndex: i + 1, totalChunks, timestamp: Date.now() }).catch(() => {});
+    }
   }
 
-  // All chunks done
+  // All chunks done — clear progress for this page
+  if (pageUrl) {
+    clearProgress(pageUrl).catch(() => {});
+  }
   stopPlayback();
 }
 
@@ -387,7 +438,7 @@ async function synthesizeChunkWithFailover(
 
       // For 5xx/network errors, retry same config once before failing over
       if ((err.status >= 500 || err.status === 0) && attempts === 1) {
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, Math.min(1000 * 2 ** (attempts - 1), 8000)));
         continue;
       }
 

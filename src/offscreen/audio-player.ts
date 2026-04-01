@@ -14,9 +14,14 @@ export class AudioPlayer {
   private playbackRate = 1.0;
   private prefetchedBuffers = new Map<number, AudioBuffer>();
 
+  // Gapless scheduling: next chunk pre-scheduled to start when current ends
+  private nextSourceNode: AudioBufferSourceNode | null = null;
+  private nextBuffer: AudioBuffer | null = null;
+  private nextChunkIndex = -1;
+
   private getContext(): AudioContext {
     if (!this.ctx) {
-      this.ctx = new AudioContext();
+      this.ctx = new AudioContext({ latencyHint: 'interactive' });
       this.gainNode = this.ctx.createGain();
       this.gainNode.connect(this.ctx.destination);
     }
@@ -48,6 +53,60 @@ export class AudioPlayer {
     this.startPlayback();
   }
 
+  /**
+   * Schedule the next chunk to start exactly when the current one ends (gapless).
+   * If nothing is playing, falls back to regular play().
+   */
+  async scheduleNext(audioData: ArrayBuffer, chunkIndex: number, _format: string): Promise<void> {
+    const ctx = this.getContext();
+
+    if (!this.isPlaying || !this.currentBuffer) {
+      // Nothing playing — just play directly
+      await this.play(audioData, chunkIndex, _format);
+      return;
+    }
+
+    // Cancel any previously scheduled next
+    if (this.nextSourceNode) {
+      try { this.nextSourceNode.stop(); } catch { /* already stopped */ }
+      this.nextSourceNode.disconnect();
+      this.nextSourceNode = null;
+    }
+
+    // Decode the next buffer
+    let buffer: AudioBuffer;
+    const cached = this.prefetchedBuffers.get(chunkIndex);
+    if (cached) {
+      buffer = cached;
+      this.prefetchedBuffers.delete(chunkIndex);
+    } else {
+      buffer = await ctx.decodeAudioData(audioData.slice(0));
+    }
+
+    this.nextBuffer = buffer;
+    this.nextChunkIndex = chunkIndex;
+
+    // Schedule to start at the exact moment current source ends
+    const elapsed = ctx.currentTime - this.startTime;
+    const currentDuration = (this.currentBuffer.duration - this.pauseOffset) / this.playbackRate;
+    const remaining = currentDuration - elapsed;
+    const startAt = ctx.currentTime + Math.max(0, remaining);
+
+    this.nextSourceNode = ctx.createBufferSource();
+    this.nextSourceNode.buffer = buffer;
+    this.nextSourceNode.playbackRate.value = this.playbackRate;
+    this.nextSourceNode.connect(this.gainNode!);
+    this.nextSourceNode.start(startAt);
+
+    // When the next source ends naturally, signal chunk complete
+    this.nextSourceNode.onended = () => {
+      // Only fire if this node is still the "current" one (wasn't cancelled)
+      if (this.sourceNode === this.nextSourceNode || this.currentChunkIndex === this.nextChunkIndex) {
+        // Will be handled by the promoted source's onended in startPlayback
+      }
+    };
+  }
+
   async prefetch(audioData: ArrayBuffer, chunkIndex: number, _format: string): Promise<void> {
     const ctx = this.getContext();
     try {
@@ -68,6 +127,8 @@ export class AudioPlayer {
   private startPlayback(): void {
     if (!this.currentBuffer || !this.ctx || !this.gainNode) return;
 
+    const completingChunkIndex = this.currentChunkIndex;
+
     this.sourceNode = this.ctx.createBufferSource();
     this.sourceNode.buffer = this.currentBuffer;
     this.sourceNode.playbackRate.value = this.playbackRate;
@@ -75,12 +136,47 @@ export class AudioPlayer {
 
     this.sourceNode.onended = () => {
       if (this.isPlaying) {
-        this.isPlaying = false;
         this.stopProgressReporting();
-        this.sendMessage({
-          type: MSG.CHUNK_COMPLETE,
-          chunkIndex: this.currentChunkIndex,
-        });
+
+        if (this.nextSourceNode && this.nextBuffer) {
+          // Promote next to current (gapless transition)
+          this.sourceNode = this.nextSourceNode;
+          this.currentBuffer = this.nextBuffer;
+          this.currentChunkIndex = this.nextChunkIndex;
+          this.startTime = this.ctx!.currentTime;
+          this.pauseOffset = 0;
+          this.nextSourceNode = null;
+          this.nextBuffer = null;
+          this.nextChunkIndex = -1;
+
+          // Re-attach onended for the promoted source
+          const promotedChunkIndex = this.currentChunkIndex;
+          this.sourceNode.onended = () => {
+            if (this.isPlaying) {
+              this.isPlaying = false;
+              this.stopProgressReporting();
+              this.sendMessage({
+                type: MSG.CHUNK_COMPLETE,
+                chunkIndex: promotedChunkIndex,
+              });
+            }
+          };
+
+          this.startProgressReporting();
+
+          // Signal the old chunk complete
+          this.sendMessage({
+            type: MSG.CHUNK_COMPLETE,
+            chunkIndex: completingChunkIndex,
+          });
+        } else {
+          // No next buffer queued — just complete
+          this.isPlaying = false;
+          this.sendMessage({
+            type: MSG.CHUNK_COMPLETE,
+            chunkIndex: completingChunkIndex,
+          });
+        }
       }
     };
 
@@ -102,6 +198,17 @@ export class AudioPlayer {
     }
     this.sourceNode.disconnect();
     this.sourceNode = null;
+
+    // Cancel pre-scheduled next source (keep nextBuffer for re-scheduling on resume)
+    if (this.nextSourceNode) {
+      try {
+        this.nextSourceNode.onended = null;
+        this.nextSourceNode.stop();
+      } catch { /* already stopped */ }
+      this.nextSourceNode.disconnect();
+      this.nextSourceNode = null;
+    }
+
     this.stopProgressReporting();
   }
 
@@ -123,7 +230,17 @@ export class AudioPlayer {
       this.sourceNode.disconnect();
       this.sourceNode = null;
     }
+    if (this.nextSourceNode) {
+      try {
+        this.nextSourceNode.onended = null;
+        this.nextSourceNode.stop();
+      } catch { /* already stopped */ }
+      this.nextSourceNode.disconnect();
+      this.nextSourceNode = null;
+    }
     this.currentBuffer = null;
+    this.nextBuffer = null;
+    this.nextChunkIndex = -1;
     this.pauseOffset = 0;
     this.currentChunkIndex = -1;
   }
@@ -132,6 +249,9 @@ export class AudioPlayer {
     this.playbackRate = rate;
     if (this.sourceNode && this.isPlaying) {
       this.sourceNode.playbackRate.value = rate;
+    }
+    if (this.nextSourceNode) {
+      this.nextSourceNode.playbackRate.value = rate;
     }
   }
 

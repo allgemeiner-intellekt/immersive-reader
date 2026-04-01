@@ -35,6 +35,7 @@ function getOrCreateHealth(configId: string): ConfigHealth {
 }
 
 export function getCooldownDuration(error: ApiError): number {
+  if (error.retryAfterMs) return error.retryAfterMs;
   if (error.status === 429) return COOLDOWN_429;
   if (error.status === 403) return COOLDOWN_403;
   if (error.status >= 500) return COOLDOWN_5XX;

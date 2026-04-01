@@ -8,6 +8,7 @@ const player = new AudioPlayer();
 function isOffscreenMessage(message: ExtensionMessage): boolean {
   return (
     message.type === MSG.OFFSCREEN_PLAY ||
+    message.type === MSG.OFFSCREEN_SCHEDULE_NEXT ||
     message.type === MSG.OFFSCREEN_PAUSE ||
     message.type === MSG.OFFSCREEN_RESUME ||
     message.type === MSG.OFFSCREEN_STOP ||
@@ -44,6 +45,12 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     case MSG.OFFSCREEN_PLAY: {
       const audioData = base64ToArrayBuffer(message.audioBase64);
       await player.play(audioData, message.chunkIndex, message.format);
+      return { ok: true };
+    }
+
+    case MSG.OFFSCREEN_SCHEDULE_NEXT: {
+      const audioData = base64ToArrayBuffer(message.audioBase64);
+      await player.scheduleNext(audioData, message.chunkIndex, message.format);
       return { ok: true };
     }
 

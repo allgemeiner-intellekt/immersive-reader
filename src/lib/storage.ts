@@ -121,6 +121,45 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   await chrome.storage.local.set({ [SETTINGS_KEY]: toSave });
 }
 
+// === Reading Progress ===
+
+export interface ReadingProgress {
+  url: string;
+  chunkIndex: number;
+  totalChunks: number;
+  timestamp: number;
+}
+
+const PROGRESS_PREFIX = 'ir-progress:';
+const PROGRESS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+export async function saveProgress(progress: ReadingProgress): Promise<void> {
+  await chrome.storage.local.set({ [PROGRESS_PREFIX + progress.url]: progress });
+}
+
+export async function getProgress(url: string): Promise<ReadingProgress | null> {
+  const result = await chrome.storage.local.get(PROGRESS_PREFIX + url);
+  const data = result[PROGRESS_PREFIX + url] as ReadingProgress | undefined;
+  if (!data) return null;
+  if (Date.now() - data.timestamp > PROGRESS_MAX_AGE_MS) {
+    await chrome.storage.local.remove(PROGRESS_PREFIX + url);
+    return null;
+  }
+  return data;
+}
+
+export async function clearProgress(url: string): Promise<void> {
+  await chrome.storage.local.remove(PROGRESS_PREFIX + url);
+}
+
+export async function cleanOldProgress(): Promise<void> {
+  const all = await chrome.storage.local.get(null);
+  const keysToRemove = Object.keys(all).filter(
+    (k) => k.startsWith(PROGRESS_PREFIX) && Date.now() - (all[k] as ReadingProgress).timestamp > PROGRESS_MAX_AGE_MS,
+  );
+  if (keysToRemove.length) await chrome.storage.local.remove(keysToRemove);
+}
+
 // === Key Masking Utility ===
 
 export function maskKey(key: string): string {

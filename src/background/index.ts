@@ -1,6 +1,7 @@
 import { ensureOffscreenDocument } from './offscreen-manager';
 import { routeMessage } from './message-router';
 import { playbackState } from './playback-state';
+import { cleanOldProgress } from '@shared/storage';
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   routeMessage(message, sender, sendResponse);
@@ -13,6 +14,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.tabs.create({ url: chrome.runtime.getURL('src/onboarding/index.html') });
   }
 });
+
+// Clean up old reading progress entries on startup
+cleanOldProgress().catch(() => {});
 
 // Keep service worker alive during playback via periodic alarm
 chrome.alarms.onAlarm.addListener((alarm) => {

@@ -68,7 +68,8 @@ export function splitSentences(text: string): SentenceBoundary[] {
     const ch = text[i];
 
     // Check for sentence-ending punctuation
-    if (ch !== '.' && ch !== '!' && ch !== '?' && ch !== '\u2026') continue;
+    if (ch !== '.' && ch !== '!' && ch !== '?' && ch !== '\u2026'
+        && ch !== '\u3002' && ch !== '\uFF01' && ch !== '\uFF1F') continue;
 
     // Skip ellipsis
     if (ch === '.' && isEllipsis(text, i)) continue;
@@ -101,10 +102,12 @@ export function splitSentences(text: string): SentenceBoundary[] {
 
     const atEnd = afterPunct >= text.length;
     const nextIsUpper = afterPunct < text.length && /[A-Z\u201C\u2018"'\(]/.test(text[afterPunct]);
+    const isCjkTerminator = ch === '\u3002' || ch === '\uFF01' || ch === '\uFF1F';
+    const nextIsCjk = afterPunct < text.length && /[\u4E00-\u9FFF\u3400-\u4DBF\u3000-\u303F]/.test(text[afterPunct]);
     const hasNewline =
       end < text.length && text.slice(end, afterPunct).includes('\n');
 
-    if (atEnd || nextIsUpper || hasNewline) {
+    if (atEnd || nextIsUpper || isCjkTerminator || nextIsCjk || hasNewline) {
       const sentenceText = text.slice(sentenceStart, end).trim();
       if (sentenceText) {
         boundaries.push({

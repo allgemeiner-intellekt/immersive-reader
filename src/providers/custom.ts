@@ -39,6 +39,7 @@ export const customProvider: TTSProvider = {
     let response: Response;
     try {
       response = await fetch(buildOpenAICompatibleUrl(config.baseUrl, '/audio/speech'), {
+        signal: AbortSignal.timeout(30_000),
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,
@@ -64,7 +65,7 @@ export const customProvider: TTSProvider = {
       if (response.status === 429) {
         throw new ApiError('Rate limit exceeded. Please try again later.', 429, 'custom', true);
       }
-      throw ApiError.fromResponse(response.status, errBody || response.statusText, 'custom');
+      throw ApiError.fromResponse(response.status, errBody || response.statusText, 'custom', response.headers);
     }
 
     const audioData = await response.arrayBuffer();
