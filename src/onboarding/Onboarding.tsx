@@ -4,8 +4,10 @@ import type { ProviderConfig } from '@shared/types';
 import { sendMessage } from '@shared/messages';
 import { MSG } from '@shared/messages';
 import { saveProvider, setActiveProviderGroup, getProviderGroupKey, getSettings, saveSettings, generateId } from '@shared/storage';
+import { useTheme } from '@shared/useTheme';
 
 export function Onboarding() {
+  useTheme();
   const [currentStep, setCurrentStep] = useState(0);
 
   const handleComplete = async () => {

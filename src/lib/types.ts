@@ -99,6 +99,10 @@ export interface WordTiming {
   charEnd: number;
 }
 
+// === Theme ===
+
+export type ThemeMode = 'system' | 'light' | 'dark';
+
 // === Settings Types ===
 
 export interface HighlightSettings {
@@ -124,6 +128,7 @@ export interface AppSettings {
   activeVoiceId: string | null;
   playback: PlaybackSettings;
   highlight: HighlightSettings;
+  theme: ThemeMode;
   onboardingComplete: boolean;
 }
 

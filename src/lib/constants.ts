@@ -1,8 +1,9 @@
-import type { AppSettings } from './types';
+import type { AppSettings, ThemeMode } from './types';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   activeProviderGroup: null,
   activeVoiceId: null,
+  theme: 'system' as ThemeMode,
   playback: {
     defaultSpeed: 1.0,
     defaultVolume: 1.0,

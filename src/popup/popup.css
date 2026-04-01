@@ -1,22 +1,14 @@
+@import '../lib/theme-vars.css';
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-:root {
-  --bg: #1a1a2e;
-  --surface: #16213e;
-  --surface-hover: #1c2a4a;
-  --text: #e0e0e0;
-  --text-muted: #888;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --border: #2a2a4a;
-  --radius: 8px;
-}
-
 body {
+  opacity: 0;
+  transition: opacity 0.1s;
   width: 360px;
   min-height: 420px;
   max-height: 520px;
@@ -43,7 +35,7 @@ body {
 .popup-title {
   font-size: 18px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text);
 }
 
 .icon-btn {
@@ -156,7 +148,7 @@ body {
 .transport-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text);
 }
 
 .transport-btn:disabled {
@@ -205,7 +197,7 @@ body {
 }
 
 .play-btn:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--text);
   outline-offset: 3px;
 }
 

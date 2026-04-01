@@ -1,25 +1,14 @@
+@import '../lib/theme-vars.css';
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-:root {
-  --bg: #0f0f23;
-  --bg-alt: #1a1a2e;
-  --surface: #16213e;
-  --surface-hover: #1c2a4a;
-  --text: #e0e0e0;
-  --text-muted: #888;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --success: #22c55e;
-  --danger: #ef4444;
-  --border: #2a2a4a;
-  --radius: 8px;
-}
-
 body {
+  opacity: 0;
+  transition: opacity 0.1s;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -83,7 +72,7 @@ body {
 .step-title {
   font-size: 28px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
   margin-bottom: 8px;
 }
 
@@ -133,7 +122,7 @@ body {
 .value-card h3 {
   font-size: 15px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text);
   margin-bottom: 4px;
 }
 
@@ -338,7 +327,7 @@ body {
 .tips-card h3 {
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text);
   margin-bottom: 12px;
 }
 

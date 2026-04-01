@@ -4,8 +4,53 @@
   all: initial;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
-  color: #ffffff;
+  color: var(--ir-text);
   line-height: 1.4;
+
+  /* Dark theme (default) */
+  --ir-bg: rgba(26, 26, 46, 0.95);
+  --ir-border: rgba(255, 255, 255, 0.1);
+  --ir-shadow: rgba(0, 0, 0, 0.4);
+  --ir-text: #ffffff;
+  --ir-text-muted: rgba(255, 255, 255, 0.5);
+  --ir-btn-hover: rgba(255, 255, 255, 0.12);
+  --ir-btn-active: rgba(255, 255, 255, 0.2);
+  --ir-progress-track: rgba(255, 255, 255, 0.15);
+  --ir-accent: #3b82f6;
+  --ir-accent-hover: #2563eb;
+  --ir-stop: #ef4444;
+  --ir-stop-hover: rgba(239, 68, 68, 0.3);
+  --ir-close-hover: rgba(239, 68, 68, 0.3);
+  --ir-volume-color: rgba(255, 255, 255, 0.7);
+  --ir-volume-track: rgba(255, 255, 255, 0.2);
+  --ir-volume-thumb: #ffffff;
+  --ir-spinner-ring: rgba(255, 255, 255, 0.3);
+  --ir-spinner-arc: #ffffff;
+  --ir-toast-bg: rgba(30, 30, 50, 0.95);
+  --ir-toast-shadow: rgba(0, 0, 0, 0.4);
+}
+
+:host(.light) {
+  --ir-bg: rgba(255, 255, 255, 0.92);
+  --ir-border: rgba(0, 0, 0, 0.1);
+  --ir-shadow: rgba(0, 0, 0, 0.15);
+  --ir-text: #1a1a2e;
+  --ir-text-muted: rgba(0, 0, 0, 0.5);
+  --ir-btn-hover: rgba(0, 0, 0, 0.08);
+  --ir-btn-active: rgba(0, 0, 0, 0.12);
+  --ir-progress-track: rgba(0, 0, 0, 0.1);
+  --ir-accent: #2563eb;
+  --ir-accent-hover: #1d4ed8;
+  --ir-stop: #dc2626;
+  --ir-stop-hover: rgba(220, 38, 38, 0.15);
+  --ir-close-hover: rgba(220, 38, 38, 0.15);
+  --ir-volume-color: rgba(0, 0, 0, 0.5);
+  --ir-volume-track: rgba(0, 0, 0, 0.12);
+  --ir-volume-thumb: #1a1a2e;
+  --ir-spinner-ring: rgba(0, 0, 0, 0.2);
+  --ir-spinner-arc: #1a1a2e;
+  --ir-toast-bg: rgba(255, 255, 255, 0.95);
+  --ir-toast-shadow: rgba(0, 0, 0, 0.15);
 }
 
 *,
@@ -19,12 +64,12 @@
 /* --- Toolbar Container --- */
 
 .ir-toolbar {
-  background: rgba(26, 26, 46, 0.95);
+  background: var(--ir-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  color: #ffffff;
+  border: 1px solid var(--ir-border);
+  box-shadow: 0 8px 32px var(--ir-shadow);
+  color: var(--ir-text);
   user-select: none;
   cursor: grab;
   overflow: hidden;
@@ -102,7 +147,7 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--ir-text);
   cursor: pointer;
   border-radius: 50%;
   padding: 4px;
@@ -111,11 +156,11 @@
 }
 
 .ir-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ir-btn-hover);
 }
 
 .ir-btn:active {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--ir-btn-active);
 }
 
 .ir-btn:disabled {
@@ -125,12 +170,13 @@
 
 /* Play/Pause */
 .ir-play-pause {
-  background: #3b82f6;
+  background: var(--ir-accent);
+  color: #fff;
   border-radius: 50%;
 }
 
 .ir-play-pause:hover {
-  background: #2563eb;
+  background: var(--ir-accent-hover);
 }
 
 .ir-play-pause--large {
@@ -144,13 +190,13 @@
   padding: 2px 10px;
   font-size: 12px;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ir-btn-hover);
   white-space: nowrap;
   min-width: 40px;
 }
 
 .ir-speed-chip:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--ir-btn-active);
 }
 
 /* Close */
@@ -160,7 +206,7 @@
 
 .ir-close:hover {
   opacity: 1;
-  background: rgba(239, 68, 68, 0.3);
+  background: var(--ir-close-hover);
 }
 
 /* Expand */
@@ -174,11 +220,11 @@
 
 /* Stop */
 .ir-stop {
-  color: #ef4444;
+  color: var(--ir-stop);
 }
 
 .ir-stop:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: var(--ir-stop-hover);
 }
 
 /* Skip */
@@ -195,7 +241,7 @@
 .ir-progress {
   flex: 1;
   height: 4px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--ir-progress-track);
   border-radius: 2px;
   overflow: hidden;
   min-width: 60px;
@@ -203,7 +249,7 @@
 
 .ir-progress-fill {
   height: 100%;
-  background: #3b82f6;
+  background: var(--ir-accent);
   border-radius: 2px;
   transition: width 0.15s linear;
 }
@@ -224,7 +270,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--ir-volume-color);
 }
 
 .ir-volume-slider {
@@ -232,7 +278,7 @@
   appearance: none;
   width: 80px;
   height: 4px;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--ir-volume-track);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -243,7 +289,7 @@
   appearance: none;
   width: 12px;
   height: 12px;
-  background: #ffffff;
+  background: var(--ir-volume-thumb);
   border-radius: 50%;
   cursor: pointer;
   transition: transform 0.1s ease;
@@ -256,7 +302,7 @@
 .ir-volume-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  background: #ffffff;
+  background: var(--ir-volume-thumb);
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -266,7 +312,7 @@
 
 .ir-provider-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ir-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -279,8 +325,8 @@
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #ffffff;
+  border: 2px solid var(--ir-spinner-ring);
+  border-top-color: var(--ir-spinner-arc);
   border-radius: 50%;
   animation: ir-spin 0.6s linear infinite;
 }
@@ -327,13 +373,13 @@
   position: fixed;
   bottom: 80px;
   right: 24px;
-  background: rgba(30, 30, 50, 0.95);
-  color: #ffffff;
+  background: var(--ir-toast-bg);
+  color: var(--ir-text);
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px var(--ir-toast-shadow);
   z-index: 2147483646;
   pointer-events: none;
   animation: ir-toast-in 0.2s ease, ir-toast-out 0.2s ease 2.6s forwards;

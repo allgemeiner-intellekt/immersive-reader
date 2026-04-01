@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { ProviderConfig, Voice, AppSettings, ProviderUsage } from '@shared/types';
+import type { ProviderConfig, Voice, AppSettings, ProviderUsage, ThemeMode } from '@shared/types';
 import { PROVIDER_LIST } from '@providers/registry';
 import { ELEVENLABS_MODELS } from '@providers/elevenlabs';
 import {
@@ -15,11 +15,13 @@ import {
 } from '@shared/storage';
 import { DEFAULT_SETTINGS, SPEED_MIN, SPEED_MAX, SPEED_STEP } from '@shared/constants';
 import { MSG, sendMessage } from '@shared/messages';
+import { useTheme } from '@shared/useTheme';
 import type { ConfigHealth } from '../background/failover';
 
-type Section = 'providers' | 'voices' | 'playback' | 'highlighting' | 'hotkeys' | 'advanced';
+type Section = 'appearance' | 'providers' | 'voices' | 'playback' | 'highlighting' | 'hotkeys' | 'advanced';
 
 const NAV_ITEMS: { id: Section; label: string }[] = [
+  { id: 'appearance', label: 'Appearance' },
   { id: 'providers', label: 'Providers' },
   { id: 'voices', label: 'Voices' },
   { id: 'playback', label: 'Playback' },
@@ -104,7 +106,8 @@ function describeVoiceLoadError(error: unknown): string {
 }
 
 export function Options() {
-  const [section, setSection] = useState<Section>('providers');
+  useTheme();
+  const [section, setSection] = useState<Section>('appearance');
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -344,6 +347,37 @@ export function Options() {
 
       {/* Content */}
       <main className="content" role="main">
+        {/* === Appearance === */}
+        {section === 'appearance' && (
+          <div className="section-content">
+            <h1>Appearance</h1>
+            <div className="settings-card">
+              <div className="setting-row">
+                <span className="setting-label">Theme</span>
+              </div>
+              <div className="theme-options">
+                {(['system', 'light', 'dark'] as ThemeMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    className={`btn ${settings.theme === mode ? 'btn-primary' : ''}`}
+                    onClick={() => saveSettings({ ...settings, theme: mode }).then(() => setSettings({ ...settings, theme: mode }))}
+                    style={{ textTransform: 'capitalize' }}
+                  >
+                    {mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}
+                  </button>
+                ))}
+              </div>
+              <p className="setting-desc" style={{ marginTop: '12px' }}>
+                {settings.theme === 'system'
+                  ? 'Follows your operating system preference.'
+                  : settings.theme === 'light'
+                    ? 'Always use light theme.'
+                    : 'Always use dark theme.'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* === Providers === */}
         {section === 'providers' && (
           <div className="section-content">

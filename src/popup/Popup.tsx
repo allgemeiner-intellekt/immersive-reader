@@ -3,6 +3,7 @@ import { MSG, sendMessage } from '@shared/messages';
 import type { PlaybackState, ProviderConfig, AppSettings, PageInfo } from '@shared/types';
 import { getProviders, getSettings, saveSettings, getActiveProvider, getProviderGroupKey } from '@shared/storage';
 import { SPEED_MIN, SPEED_MAX, SPEED_STEP } from '@shared/constants';
+import { useTheme } from '@shared/useTheme';
 
 const SPEED_CHIPS = [1, 1.25, 1.5, 2];
 
@@ -18,6 +19,7 @@ const DEFAULT_PLAYBACK: PlaybackState = {
 };
 
 export function Popup() {
+  useTheme();
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [activeProvider, setActiveProvider] = useState<ProviderConfig | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);

@@ -2,8 +2,12 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { FloatingToolbar } from './player/FloatingToolbar';
 import toolbarStyles from './player/toolbar.css?inline';
+import { getSettings } from '@shared/storage';
+import { resolveTheme } from '@shared/theme';
+import type { ThemeMode } from '@shared/types';
 
 const ROOT_ID = 'immersive-reader-root';
+const SETTINGS_KEY = 'ir-settings';
 
 export function mountToolbar() {
   // Avoid double-mounting
@@ -29,6 +33,28 @@ export function mountToolbar() {
   const styleEl = document.createElement('style');
   styleEl.textContent = toolbarStyles;
   shadow.appendChild(styleEl);
+
+  // Apply theme class to host
+  async function applyToolbarTheme() {
+    const settings = await getSettings();
+    const resolved = resolveTheme(settings.theme);
+    host.classList.toggle('light', resolved === 'light');
+    host.classList.toggle('dark', resolved === 'dark');
+  }
+
+  applyToolbarTheme();
+
+  // Listen for storage changes
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes[SETTINGS_KEY]) {
+      applyToolbarTheme();
+    }
+  });
+
+  // Listen for OS preference changes (for system mode)
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    applyToolbarTheme();
+  });
 
   // Create a container for React inside the shadow
   const container = document.createElement('div');
