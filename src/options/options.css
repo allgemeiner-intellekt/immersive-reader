@@ -564,6 +564,34 @@ body {
   font-size: 10px;
 }
 
+/* ---- Usage Bar ---- */
+.usage-section {
+  margin-top: 6px;
+}
+
+.usage-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.usage-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.usage-fill--ok { background: var(--success); }
+.usage-fill--warn { background: #eab308; }
+.usage-fill--danger { background: var(--danger); }
+
+.usage-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
 /* ---- Provider Group Header ---- */
 .provider-group-header {
   font-size: 13px;

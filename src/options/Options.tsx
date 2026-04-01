@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { ProviderConfig, Voice, AppSettings } from '@shared/types';
+import type { ProviderConfig, Voice, AppSettings, ProviderUsage } from '@shared/types';
 import { PROVIDER_LIST } from '@providers/registry';
 import { ELEVENLABS_MODELS } from '@providers/elevenlabs';
 import {
@@ -188,6 +188,32 @@ export function Options() {
     const interval = setInterval(fetchHealth, 10_000);
     return () => clearInterval(interval);
   }, [section]);
+
+  // Poll ElevenLabs usage when on the providers section
+  const [usageMap, setUsageMap] = useState<Record<string, ProviderUsage | { error: string }>>({});
+
+  useEffect(() => {
+    if (section !== 'providers') return;
+
+    const elevenLabsConfigs = providers.filter((p) => p.providerId === 'elevenlabs');
+    if (elevenLabsConfigs.length === 0) return;
+
+    const fetchUsage = () => {
+      elevenLabsConfigs.forEach((config) => {
+        sendMessage<ProviderUsage | { error: string }>({
+          type: MSG.GET_PROVIDER_USAGE,
+          configId: config.id,
+        })
+          .then((result) => {
+            setUsageMap((prev) => ({ ...prev, [config.id]: result }));
+          })
+          .catch(() => {});
+      });
+    };
+    fetchUsage();
+    const interval = setInterval(fetchUsage, 60_000);
+    return () => clearInterval(interval);
+  }, [section, providers]);
 
   // --- Provider CRUD ---
   const openAddForm = () => {
@@ -407,6 +433,35 @@ export function Options() {
                                   </button>
                                 </div>
                               )}
+                              {p.providerId === 'elevenlabs' && (() => {
+                                const usage = usageMap[p.id];
+                                if (!usage) return null;
+                                if ('error' in usage) {
+                                  return <div className="usage-text">{usage.error}</div>;
+                                }
+                                const pct = usage.characterLimit > 0
+                                  ? (usage.characterCount / usage.characterLimit) * 100
+                                  : 0;
+                                const level = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : 'ok';
+                                const daysUntilReset = Math.max(
+                                  0,
+                                  Math.ceil((usage.nextResetUnix * 1000 - Date.now()) / 86_400_000),
+                                );
+                                return (
+                                  <div className="usage-section">
+                                    <div className="usage-bar">
+                                      <div
+                                        className={`usage-fill usage-fill--${level}`}
+                                        style={{ width: `${Math.min(pct, 100)}%` }}
+                                      />
+                                    </div>
+                                    <div className="usage-text">
+                                      {usage.characterCount.toLocaleString()} / {usage.characterLimit.toLocaleString()} characters
+                                      {' '}&middot; Resets in {daysUntilReset}d
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                             <div className="card-actions">
                               <button className="btn btn-sm" onClick={() => openEditForm(p)}>

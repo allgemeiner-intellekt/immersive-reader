@@ -1,4 +1,4 @@
-import type { ProviderConfig, Voice, PlaybackState, AppSettings } from './types';
+import type { ProviderConfig, Voice, PlaybackState, AppSettings, ProviderUsage } from './types';
 
 export const MSG = {
   // Transport controls (content/popup → SW → offscreen)
@@ -39,6 +39,9 @@ export const MSG = {
   // Content ↔ Popup
   GET_PAGE_INFO: 'GET_PAGE_INFO',
   START_READING: 'START_READING',
+
+  // Provider usage
+  GET_PROVIDER_USAGE: 'GET_PROVIDER_USAGE',
 
   // Health & Failover
   GET_PROVIDER_HEALTH: 'GET_PROVIDER_HEALTH',
@@ -198,6 +201,13 @@ export interface StartReadingMessage {
   type: typeof MSG.START_READING;
 }
 
+// --- Provider Usage Messages ---
+
+export interface GetProviderUsageMessage {
+  type: typeof MSG.GET_PROVIDER_USAGE;
+  configId: string;
+}
+
 // --- Health & Failover Messages ---
 
 export interface GetProviderHealthMessage {
@@ -251,6 +261,7 @@ export type ExtensionMessage =
   | SetActiveProviderMessage
   | GetPageInfoMessage
   | StartReadingMessage
+  | GetProviderUsageMessage
   | GetProviderHealthMessage
   | ResetProviderHealthMessage
   | FailoverNoticeMessage

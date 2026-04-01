@@ -15,6 +15,7 @@ import {
 } from './orchestrator';
 import { playbackState } from './playback-state';
 import { getProvider } from '@providers/registry';
+import { getElevenLabsUsage } from '@providers/elevenlabs';
 import { getProviders, setActiveProviderGroup } from '@shared/storage';
 import { getAllHealth, clearHealth } from './failover';
 
@@ -166,6 +167,23 @@ export async function routeMessage(
       case MSG.SYNTHESIZE: {
         // Not used directly (orchestrator handles synthesis internally)
         sendResponse({ error: 'Use PLAY to start playback' });
+        break;
+      }
+
+      // === Provider Usage ===
+      case MSG.GET_PROVIDER_USAGE: {
+        try {
+          const providers = await getProviders();
+          const config = providers.find((p) => p.id === message.configId);
+          if (!config || config.providerId !== 'elevenlabs') {
+            sendResponse({ error: 'Not an ElevenLabs config' });
+            break;
+          }
+          const usage = await getElevenLabsUsage(config);
+          sendResponse(usage);
+        } catch (err) {
+          sendResponse({ error: err instanceof Error ? err.message : String(err) });
+        }
         break;
       }
 

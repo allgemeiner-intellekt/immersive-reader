@@ -1,4 +1,4 @@
-import type { TTSProvider, ProviderConfig, Voice, SynthesisResult, SynthesisOptions } from '@shared/types';
+import type { TTSProvider, ProviderConfig, Voice, SynthesisResult, SynthesisOptions, ProviderUsage } from '@shared/types';
 import { hasLikelyValidApiKeyFormat } from './api-key-format';
 import { ApiError } from '@shared/api-error';
 
@@ -146,3 +146,31 @@ export const elevenlabsProvider: TTSProvider = {
     }
   },
 };
+
+export async function getElevenLabsUsage(config: ProviderConfig): Promise<ProviderUsage> {
+  const baseUrl = getNormalizedBaseUrl(config);
+  const apiKey = getNormalizedApiKey(config);
+  const response = await fetch(`${baseUrl}/v1/user/subscription`, {
+    headers: { 'xi-api-key': apiKey },
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '');
+    const detail = getElevenLabsErrorMessage(errBody);
+    throw new Error(
+      `Could not fetch usage (HTTP ${response.status})${detail ? `: ${detail}` : ''}`,
+    );
+  }
+
+  const data = (await response.json()) as {
+    character_count: number;
+    character_limit: number;
+    next_character_count_reset_unix: number;
+  };
+
+  return {
+    characterCount: data.character_count,
+    characterLimit: data.character_limit,
+    nextResetUnix: data.next_character_count_reset_unix,
+  };
+}

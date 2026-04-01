@@ -127,6 +127,14 @@ export interface AppSettings {
   onboardingComplete: boolean;
 }
 
+// === Provider Usage ===
+
+export interface ProviderUsage {
+  characterCount: number;
+  characterLimit: number;
+  nextResetUnix: number;
+}
+
 // === Page Info ===
 
 export interface PageInfo {
