@@ -28,6 +28,7 @@ export interface ToolbarState {
   stop: () => void;
   skipForward: () => void;
   skipBackward: () => void;
+  seekToChunk: (chunkIndex: number) => void;
   setSpeed: (speed: number) => void;
   cycleSpeed: () => void;
   setVolume: (volume: number) => void;
@@ -85,6 +86,12 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
 
   skipBackward: () => {
     sendMessage({ type: MSG.SKIP_BACKWARD });
+  },
+
+  seekToChunk: (chunkIndex: number) => {
+    if (get().playbackStatus === 'idle') return;
+    sendMessage({ type: MSG.SEEK_TO_CHUNK, chunkIndex });
+    set({ playbackStatus: 'loading' });
   },
 
   setSpeed: (speed: number) => {

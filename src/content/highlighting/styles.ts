@@ -45,6 +45,14 @@ function buildCSS(settings: HighlightSettings): string {
   background-color: ${settings.sentenceColor};
 }
 
+/* Scrub hover (interactive text navigation) */
+::highlight(ir-scrub-hover) {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Cursor when hovering over scrubbable text */
+html.ir-scrub-active { cursor: pointer; }
+
 /* Fallback mark element styles */
 mark.ir-word-mark {
   background-color: ${settings.wordColor};
@@ -55,6 +63,13 @@ mark.ir-word-mark {
 }
 mark.ir-sentence-mark {
   background-color: ${settings.sentenceColor};
+  color: inherit;
+  padding: 0;
+  margin: 0;
+  border-radius: 2px;
+}
+mark.ir-scrub-hover-mark {
+  background-color: rgba(0, 0, 0, 0.06);
   color: inherit;
   padding: 0;
   margin: 0;

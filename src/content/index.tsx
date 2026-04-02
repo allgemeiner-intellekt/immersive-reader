@@ -12,6 +12,7 @@ import {
   destroyAutoScroll,
   resumeAutoScroll,
 } from './highlighting/auto-scroll';
+import { initTextScrubber, destroyTextScrubber } from './highlighting/text-scrubber';
 
 console.log('Immersive Reader: content script loaded');
 
@@ -144,6 +145,11 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
         initAutoScroll();
       }
 
+      // Enable interactive text scrubbing (hover + click to seek)
+      initTextScrubber(highlightManager, currentChunks, (chunkIndex) => {
+        useToolbarStore.getState().seekToChunk(chunkIndex);
+      });
+
       return {
         title,
         wordCount,
@@ -227,6 +233,7 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     }
 
     case MSG.STOP: {
+      destroyTextScrubber();
       highlightManager?.destroy();
       highlightManager = null;
       destroyAutoScroll();

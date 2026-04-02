@@ -8,6 +8,7 @@ export const MSG = {
   STOP: 'STOP',
   SKIP_FORWARD: 'SKIP_FORWARD',
   SKIP_BACKWARD: 'SKIP_BACKWARD',
+  SEEK_TO_CHUNK: 'SEEK_TO_CHUNK',
   SET_SPEED: 'SET_SPEED',
   SET_VOLUME: 'SET_VOLUME',
   GET_STATE: 'GET_STATE',
@@ -84,6 +85,11 @@ export interface SkipForwardMessage {
 
 export interface SkipBackwardMessage {
   type: typeof MSG.SKIP_BACKWARD;
+}
+
+export interface SeekToChunkMessage {
+  type: typeof MSG.SEEK_TO_CHUNK;
+  chunkIndex: number;
 }
 
 export interface SetSpeedMessage {
@@ -264,6 +270,7 @@ export type ExtensionMessage =
   | StopMessage
   | SkipForwardMessage
   | SkipBackwardMessage
+  | SeekToChunkMessage
   | SetSpeedMessage
   | SetVolumeMessage
   | GetStateMessage

@@ -6,6 +6,7 @@ import {
   stopPlayback,
   skipForward,
   skipBackward,
+  skipToChunk,
   setSpeed,
   setVolume,
   getActiveTab,
@@ -69,6 +70,11 @@ export async function routeMessage(
 
       case MSG.SKIP_BACKWARD:
         skipBackward().catch(console.error);
+        sendResponse({ ok: true });
+        break;
+
+      case MSG.SEEK_TO_CHUNK:
+        skipToChunk(message.chunkIndex).catch(console.error);
         sendResponse({ ok: true });
         break;
 

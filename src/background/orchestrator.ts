@@ -254,9 +254,10 @@ export async function skipBackward(): Promise<void> {
   await skipToChunk(prevChunk);
 }
 
-async function skipToChunk(chunkIndex: number): Promise<void> {
+export async function skipToChunk(chunkIndex: number): Promise<void> {
   if (!activeTabId) return;
   const state = playbackState.getState();
+  if (state.status === 'idle') return;
 
   stopWordTimingRelay();
   await sendToOffscreen({ type: MSG.OFFSCREEN_STOP });

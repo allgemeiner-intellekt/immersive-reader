@@ -1,4 +1,4 @@
-import type { TextMapResult, HighlightSettings } from '@shared/types';
+import type { TextMapResult, TextNodeEntry, HighlightSettings } from '@shared/types';
 import { buildTextNodeMap } from '../extraction/dom-mapper';
 import { createRangeFromOffsets } from './utils';
 import { injectHighlightStyles, updateHighlightStyles, removeHighlightStyles } from './styles';
@@ -15,6 +15,7 @@ export class HighlightManager {
   private styleEl: HTMLStyleElement | null = null;
   private wordHighlight: Highlight | null = null;
   private sentenceHighlight: Highlight | null = null;
+  private scrubHoverHighlight: Highlight | null = null;
   private settings: HighlightSettings;
   private useNativeHighlight: boolean;
   private markElements: HTMLElement[] = [];
@@ -34,8 +35,10 @@ export class HighlightManager {
     if (this.useNativeHighlight) {
       this.wordHighlight = new Highlight();
       this.sentenceHighlight = new Highlight();
+      this.scrubHoverHighlight = new Highlight();
       CSS.highlights.set('ir-word', this.wordHighlight);
       CSS.highlights.set('ir-sentence', this.sentenceHighlight);
+      CSS.highlights.set('ir-scrub-hover', this.scrubHoverHighlight);
     }
   }
 
@@ -96,6 +99,39 @@ export class HighlightManager {
   }
 
   /**
+   * Highlight a sentence/chunk for the scrub hover effect.
+   */
+  highlightScrubHover(charStart: number, charEnd: number): void {
+    if (!this.textMap) return;
+
+    this.clearScrubHover();
+
+    const range = createRangeFromOffsets(this.textMap.entries, charStart, charEnd);
+    if (!range) return;
+
+    if (this.useNativeHighlight && this.scrubHoverHighlight) {
+      this.scrubHoverHighlight.add(range);
+    } else {
+      this.applyMarkFallback(range, 'ir-scrub-hover-mark');
+    }
+  }
+
+  clearScrubHover(): void {
+    if (this.useNativeHighlight && this.scrubHoverHighlight) {
+      this.scrubHoverHighlight.clear();
+    } else {
+      this.removeMarksByClass('ir-scrub-hover-mark');
+    }
+  }
+
+  /**
+   * Return the text node entries for external offset mapping.
+   */
+  getEntries(): TextNodeEntry[] {
+    return this.textMap?.entries ?? [];
+  }
+
+  /**
    * Return the concatenated plain text from the DOM text node map.
    */
   getFullText(): string {
@@ -106,6 +142,7 @@ export class HighlightManager {
   clearAll(): void {
     this.clearWordHighlight();
     this.clearSentenceHighlight();
+    this.clearScrubHover();
   }
 
   updateColors(settings: HighlightSettings): void {
@@ -121,10 +158,12 @@ export class HighlightManager {
     if (this.useNativeHighlight) {
       CSS.highlights.delete('ir-word');
       CSS.highlights.delete('ir-sentence');
+      CSS.highlights.delete('ir-scrub-hover');
     }
 
     this.wordHighlight = null;
     this.sentenceHighlight = null;
+    this.scrubHoverHighlight = null;
     this.textMap = null;
 
     if (this.styleEl) {
