@@ -215,7 +215,9 @@ export async function resumePlayback(): Promise<void> {
 export function pausePlayback(): void {
   if (playbackState.getStatus() !== 'playing') return;
   playbackState.setStatus('paused');
-  stopWordTimingRelay();
+  // Don't stop word timing relay on pause — the audio player's progress
+  // interval is cleared, so no progress messages arrive while paused.
+  // Keeping relay state alive lets highlighting resume seamlessly.
   sendToOffscreen({ type: MSG.OFFSCREEN_PAUSE }).catch(() => {});
 }
 
