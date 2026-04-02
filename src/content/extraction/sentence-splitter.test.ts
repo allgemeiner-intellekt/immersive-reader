@@ -30,6 +30,13 @@ describe('splitSentenceStrings', () => {
       'Nothing.',
     ]);
   });
+
+  it('splits sentences separated by newlines even if the next line starts lowercase', () => {
+    expect(splitSentenceStrings('First sentence.\nsecond sentence.')).toEqual([
+      'First sentence.',
+      'second sentence.',
+    ]);
+  });
 });
 
 describe('East Asian sentence splitting', () => {

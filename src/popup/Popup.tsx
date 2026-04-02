@@ -343,7 +343,7 @@ export function Popup() {
             <span>{pageInfo.wordCount.toLocaleString()} words</span>
             {playback.totalChunks > 0 && (
               <span>
-                Chunk {playback.currentChunkIndex + 1} / {playback.totalChunks}
+                Segment {playback.currentChunkIndex + 1} / {playback.totalChunks}
               </span>
             )}
           </div>

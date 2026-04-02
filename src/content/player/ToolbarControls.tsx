@@ -139,7 +139,7 @@ export function ProgressBar({ progress, chunkIndex, totalChunks }: ProgressBarPr
     totalChunks > 0 ? (chunkIndex + progress) / totalChunks : 0;
 
   return (
-    <div className="ir-progress" title={`Chunk ${chunkIndex + 1} of ${totalChunks}`}>
+    <div className="ir-progress" title={`Segment ${chunkIndex + 1} of ${totalChunks}`}>
       <div
         className="ir-progress-fill"
         style={{ width: `${Math.min(overallProgress * 100, 100)}%` }}
@@ -161,4 +161,3 @@ export function CloseButton({ onClick }: CloseButtonProps) {
     </button>
   );
 }
-

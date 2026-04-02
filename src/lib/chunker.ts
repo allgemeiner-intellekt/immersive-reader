@@ -8,8 +8,6 @@ export interface ChunkConfig {
 }
 
 const DEFAULT_CONFIG: ChunkConfig = { minWords: 15, maxWords: 25, splitThreshold: 50 };
-const MIN_WORDS_FOR_STANDALONE = 5;
-
 function countWords(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
@@ -46,70 +44,32 @@ function splitAtClauseBoundary(text: string, maxWords: number): string[] {
  * Strategy:
  * 1. Split by paragraphs
  * 2. Split each paragraph into sentences
- * 3. Merge short sentences, split long ones
- * 4. Target 15-25 words per chunk
+ * 3. Keep each sentence as its own playback segment
+ * 4. Split only very long sentences at clause boundaries
  */
 export function chunkText(text: string, config: ChunkConfig = DEFAULT_CONFIG): TextChunk[] {
   if (!text.trim()) return [];
 
-  const { minWords, maxWords, splitThreshold } = config;
+  const { maxWords, splitThreshold } = config;
   const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim());
   const rawChunks: string[] = [];
 
   for (const para of paragraphs) {
     const sentences = splitSentenceStrings(para.trim());
-    let buffer = '';
 
-    for (let i = 0; i < sentences.length; i++) {
-      const sentence = sentences[i];
+    for (const sentence of sentences) {
       const sentenceWords = countWords(sentence);
 
       // Very long sentence: split at clause boundary
       if (sentenceWords > splitThreshold) {
-        if (buffer.trim()) {
-          rawChunks.push(buffer.trim());
-          buffer = '';
-        }
         const clauses = splitAtClauseBoundary(sentence, maxWords);
         for (const clause of clauses) {
-          rawChunks.push(clause);
+          rawChunks.push(clause.trim());
         }
         continue;
       }
 
-      // Short sentence: try to merge with buffer
-      if (sentenceWords < MIN_WORDS_FOR_STANDALONE) {
-        buffer = buffer ? `${buffer} ${sentence}` : sentence;
-        if (countWords(buffer) >= minWords) {
-          rawChunks.push(buffer.trim());
-          buffer = '';
-        }
-        continue;
-      }
-
-      // Normal sentence: check if adding to buffer hits target range
-      const combined = buffer ? `${buffer} ${sentence}` : sentence;
-      const combinedWords = countWords(combined);
-
-      if (combinedWords <= maxWords) {
-        buffer = combined;
-        if (combinedWords >= minWords) {
-          rawChunks.push(buffer.trim());
-          buffer = '';
-        }
-      } else {
-        // Buffer is full enough or sentence is standalone
-        if (buffer.trim()) {
-          rawChunks.push(buffer.trim());
-        }
-        buffer = sentence;
-      }
-    }
-
-    // Flush remaining buffer at paragraph end
-    if (buffer.trim()) {
-      rawChunks.push(buffer.trim());
-      buffer = '';
+      rawChunks.push(sentence.trim());
     }
   }
 

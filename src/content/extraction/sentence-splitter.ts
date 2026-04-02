@@ -96,7 +96,7 @@ export function splitSentences(text: string): SentenceBoundary[] {
 
     // Check if followed by whitespace then an uppercase letter or end of text
     let afterPunct = end;
-    while (afterPunct < text.length && /[ \t]/.test(text[afterPunct])) {
+    while (afterPunct < text.length && /\s/.test(text[afterPunct])) {
       afterPunct++;
     }
 
@@ -104,8 +104,7 @@ export function splitSentences(text: string): SentenceBoundary[] {
     const nextIsUpper = afterPunct < text.length && /[A-Z\u201C\u2018"'(]/.test(text[afterPunct]);
     const isCjkTerminator = ch === '\u3002' || ch === '\uFF01' || ch === '\uFF1F';
     const nextIsCjk = afterPunct < text.length && /[\u4E00-\u9FFF\u3400-\u4DBF\u3000-\u303F]/.test(text[afterPunct]);
-    const hasNewline =
-      end < text.length && text.slice(end, afterPunct).includes('\n');
+    const hasNewline = /[\r\n]/.test(text.slice(end, afterPunct));
 
     if (atEnd || nextIsUpper || isCjkTerminator || nextIsCjk || hasNewline) {
       const sentenceText = text.slice(sentenceStart, end).trim();
