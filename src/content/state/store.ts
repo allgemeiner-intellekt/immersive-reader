@@ -14,7 +14,6 @@ export interface ToolbarState {
 
   // UI
   toolbarVisible: boolean;
-  toolbarExpanded: boolean;
 
   // Provider info
   providerName: string;
@@ -32,7 +31,6 @@ export interface ToolbarState {
   setSpeed: (speed: number) => void;
   cycleSpeed: () => void;
   setVolume: (volume: number) => void;
-  toggleExpanded: () => void;
   showToolbar: () => void;
   hideToolbar: () => void;
 
@@ -53,7 +51,6 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
   speed: 1.0,
   volume: 1.0,
   toolbarVisible: false,
-  toolbarExpanded: false,
   providerName: '',
   toastMessage: null,
 
@@ -79,7 +76,6 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
       currentChunkIndex: 0,
       chunkProgress: 0,
       toolbarVisible: false,
-      toolbarExpanded: false,
     });
   },
 
@@ -110,16 +106,12 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
     set({ volume });
   },
 
-  toggleExpanded: () => {
-    set((s) => ({ toolbarExpanded: !s.toolbarExpanded }));
-  },
-
   showToolbar: () => {
     set({ toolbarVisible: true });
   },
 
   hideToolbar: () => {
-    set({ toolbarVisible: false, toolbarExpanded: false });
+    set({ toolbarVisible: false });
   },
 
   _setPlaybackStatus: (status) => set({ playbackStatus: status }),

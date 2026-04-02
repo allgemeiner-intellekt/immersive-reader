@@ -4,12 +4,9 @@ import React from 'react';
 
 const PLAY_PATH = 'M8 5v14l11-7z';
 const PAUSE_PATH = 'M6 19h4V5H6v14zm8-14v14h4V5h-4z';
-const STOP_PATH = 'M6 6h12v12H6z';
 const SKIP_FORWARD_PATH = 'M6 18l8.5-6L6 6v12zm2 0l6.5-6L8 6v12zM16 6v12h2V6h-2z';
 const SKIP_BACKWARD_PATH = 'M6 6h2v12H6zm3.5 6l8.5 6V6z';
 const CLOSE_PATH = 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z';
-const EXPAND_PATH = 'M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z';
-const COLLAPSE_PATH = 'M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z';
 
 interface IconProps {
   path: string;
@@ -165,31 +162,3 @@ export function CloseButton({ onClick }: CloseButtonProps) {
   );
 }
 
-// --- StopButton ---
-
-interface StopButtonProps {
-  onClick: () => void;
-}
-
-export function StopButton({ onClick }: StopButtonProps) {
-  return (
-    <button className="ir-btn ir-stop" onClick={onClick} title="Stop">
-      <Icon path={STOP_PATH} size={18} />
-    </button>
-  );
-}
-
-// --- ExpandButton ---
-
-interface ExpandButtonProps {
-  expanded: boolean;
-  onClick: () => void;
-}
-
-export function ExpandButton({ expanded, onClick }: ExpandButtonProps) {
-  return (
-    <button className="ir-btn ir-expand" onClick={onClick} title={expanded ? 'Collapse' : 'Expand'}>
-      <Icon path={expanded ? COLLAPSE_PATH : EXPAND_PATH} size={16} />
-    </button>
-  );
-}

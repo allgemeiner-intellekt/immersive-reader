@@ -7,8 +7,6 @@ import {
   VolumeSlider,
   ProgressBar,
   CloseButton,
-  StopButton,
-  ExpandButton,
 } from './ToolbarControls';
 import { useDrag } from './useDrag';
 
@@ -22,8 +20,6 @@ export function FloatingToolbar() {
     speed,
     volume,
     toolbarVisible,
-    toolbarExpanded,
-    providerName,
     toastMessage,
     play,
     pause,
@@ -33,7 +29,6 @@ export function FloatingToolbar() {
     skipBackward,
     cycleSpeed,
     setVolume,
-    toggleExpanded,
     hideToolbar,
   } = useToolbarStore();
 
@@ -63,70 +58,6 @@ export function FloatingToolbar() {
     hideToolbar();
   };
 
-  if (toolbarExpanded) {
-    return (
-      <>
-      {toast}
-      <div
-        ref={toolbarRef}
-        className="ir-toolbar ir-toolbar--expanded"
-        style={getStyle()}
-        onMouseDown={onMouseDown}
-      >
-        {/* Collapsed-like top row */}
-        <div className="ir-collapsed-row">
-          <PlayPauseButton
-            isPlaying={isPlaying}
-            isLoading={isLoading}
-            onClick={handlePlayPause}
-          />
-          <ProgressBar
-            progress={chunkProgress}
-            chunkIndex={currentChunkIndex}
-            totalChunks={totalChunks}
-          />
-          <SpeedChip speed={speed} onClick={cycleSpeed} />
-          <CloseButton onClick={handleClose} />
-          <ExpandButton expanded={toolbarExpanded} onClick={toggleExpanded} />
-        </div>
-
-        {/* Transport controls */}
-        <div className="ir-expanded-transport">
-          <SkipButton direction="backward" onClick={skipBackward} />
-          <PlayPauseButton
-            isPlaying={isPlaying}
-            isLoading={isLoading}
-            onClick={handlePlayPause}
-            large
-          />
-          <SkipButton direction="forward" onClick={skipForward} />
-        </div>
-
-        {/* Volume + progress */}
-        <div className="ir-expanded-controls">
-          <VolumeSlider volume={volume} onChange={setVolume} />
-          <ProgressBar
-            progress={chunkProgress}
-            chunkIndex={currentChunkIndex}
-            totalChunks={totalChunks}
-          />
-        </div>
-
-        {/* Footer: provider info + stop */}
-        <div className="ir-expanded-footer">
-          {providerName ? (
-            <span className="ir-provider-label">{providerName}</span>
-          ) : (
-            <span />
-          )}
-          <StopButton onClick={handleClose} />
-        </div>
-      </div>
-      </>
-    );
-  }
-
-  // Collapsed state
   return (
     <>
     {toast}
@@ -136,19 +67,21 @@ export function FloatingToolbar() {
       style={getStyle()}
       onMouseDown={onMouseDown}
     >
+      <SkipButton direction="backward" onClick={skipBackward} />
       <PlayPauseButton
         isPlaying={isPlaying}
         isLoading={isLoading}
         onClick={handlePlayPause}
       />
+      <SkipButton direction="forward" onClick={skipForward} />
       <ProgressBar
         progress={chunkProgress}
         chunkIndex={currentChunkIndex}
         totalChunks={totalChunks}
       />
+      <VolumeSlider volume={volume} onChange={setVolume} />
       <SpeedChip speed={speed} onClick={cycleSpeed} />
       <CloseButton onClick={handleClose} />
-      <ExpandButton expanded={toolbarExpanded} onClick={toggleExpanded} />
     </div>
     </>
   );
