@@ -58,10 +58,16 @@ export async function routeMessage(
         sendResponse({ ok: true });
         break;
 
-      case MSG.STOP:
+      case MSG.STOP: {
+        const stopTab = getActiveTab();
         stopPlayback();
+        // Forward to content script so it can clean up highlights & scrubber
+        if (stopTab) {
+          chrome.tabs.sendMessage(stopTab, message).catch(() => {});
+        }
         sendResponse({ ok: true });
         break;
+      }
 
       case MSG.SKIP_FORWARD:
         skipForward().catch(console.error);
