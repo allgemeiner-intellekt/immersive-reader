@@ -3,6 +3,7 @@ import { openaiProvider } from './openai';
 import { elevenlabsProvider } from './elevenlabs';
 import { groqProvider } from './groq';
 import { customProvider } from './custom';
+import { mimoProvider } from './mimo';
 
 export interface ProviderMeta {
   id: string;
@@ -15,6 +16,7 @@ const providerMap: Record<string, TTSProvider> = {
   openai: openaiProvider,
   elevenlabs: elevenlabsProvider,
   groq: groqProvider,
+  mimo: mimoProvider,
   custom: customProvider,
 };
 
@@ -60,6 +62,12 @@ export const PROVIDER_LIST: ProviderMeta[] = [
     name: 'Groq',
     description: 'Ultra-fast inference with PlayAI voices',
     website: 'https://console.groq.com/keys',
+  },
+  {
+    id: 'mimo',
+    name: 'Xiaomi Mimo',
+    description: 'Multilingual TTS with emotion and dialect support',
+    website: 'https://platform.xiaomimimo.com',
   },
   {
     id: 'custom',
