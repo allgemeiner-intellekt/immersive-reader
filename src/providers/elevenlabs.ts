@@ -87,10 +87,16 @@ export const elevenlabsProvider: TTSProvider = {
     const apiKey = getNormalizedApiKey(config);
     const format = options?.format ?? 'mp3';
 
+    const speed = options?.speed ?? 1.0;
+
     const body: Record<string, unknown> = {
       text,
       model_id: (config.extraParams?.model_id as string) ?? DEFAULT_MODEL_ID,
     };
+
+    if (speed !== 1.0) {
+      body.speed = speed;
+    }
 
     if (config.extraParams?.stability != null || config.extraParams?.similarity_boost != null) {
       body.voice_settings = {

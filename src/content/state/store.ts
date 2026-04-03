@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PlaybackStatus } from '@shared/types';
 import { MSG, sendMessage } from '@shared/messages';
-import { SPEED_PRESETS } from '@shared/constants';
+import { SPEED_PRESETS, PROVIDER_SPEED_RANGES, filterPresetsForRange } from '@shared/constants';
 
 export interface ToolbarState {
   // Playback
@@ -18,6 +18,7 @@ export interface ToolbarState {
 
   // Provider info
   providerName: string;
+  activeProviderId: string | null;
 
   // Toast notification
   toastMessage: string | null;
@@ -43,6 +44,7 @@ export interface ToolbarState {
   _setChunkProgress: (progress: number) => void;
   _setCurrentChunk: (index: number, total?: number) => void;
   _setTotalChunks: (total: number) => void;
+  _setProviderId: (id: string | null) => void;
   _setProviderName: (name: string) => void;
   _showToast: (message: string) => void;
 }
@@ -57,6 +59,7 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
   toolbarVisible: false,
   expanded: false,
   providerName: '',
+  activeProviderId: null,
   toastMessage: null,
 
   play: () => {
@@ -105,12 +108,14 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
   },
 
   cycleSpeed: () => {
-    const { speed } = get();
-    const currentIndex = SPEED_PRESETS.indexOf(speed);
-    const nextIndex = (currentIndex + 1) % SPEED_PRESETS.length;
-    const nextSpeed = SPEED_PRESETS[nextIndex];
-    sendMessage({ type: MSG.SET_SPEED, speed: nextSpeed });
-    set({ speed: nextSpeed });
+    const { speed, activeProviderId } = get();
+    const range = activeProviderId ? PROVIDER_SPEED_RANGES[activeProviderId] ?? null : null;
+    const presets = range ? filterPresetsForRange(range.min, range.max) : SPEED_PRESETS;
+    if (presets.length === 0) return;
+    const idx = presets.indexOf(speed);
+    const next = presets[(idx + 1) % presets.length];
+    sendMessage({ type: MSG.SET_SPEED, speed: next });
+    set({ speed: next });
   },
 
   setVolume: (volume: number) => {
@@ -139,6 +144,7 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
   _setCurrentChunk: (index, total) =>
     set((s) => ({ currentChunkIndex: index, totalChunks: total ?? s.totalChunks })),
   _setTotalChunks: (total) => set({ totalChunks: total }),
+  _setProviderId: (id) => set({ activeProviderId: id }),
   _setProviderName: (name) => set({ providerName: name }),
   _showToast: (message) => {
     set({ toastMessage: message });

@@ -2,10 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MSG, sendMessage } from '@shared/messages';
 import type { PlaybackState, ProviderConfig, AppSettings, PageInfo } from '@shared/types';
 import { getProviders, getSettings, saveSettings, getActiveProvider, getProviderGroupKey } from '@shared/storage';
-import { SPEED_MIN, SPEED_MAX, SPEED_STEP } from '@shared/constants';
 import { useTheme } from '@shared/useTheme';
-
-const SPEED_CHIPS = [1, 1.25, 1.5, 2];
+import { SpeedSlider } from '@shared/SpeedSlider';
 
 const DEFAULT_PLAYBACK: PlaybackState = {
   status: 'idle',
@@ -284,32 +282,12 @@ export function Popup() {
 
       {/* Speed Control */}
       <section className="popup-section">
-        <div className="control-row">
-          <label className="control-label">Speed</label>
-          <span className="control-value">{speed.toFixed(2)}x</span>
-        </div>
-        <input
-          type="range"
-          className="slider"
-          min={SPEED_MIN}
-          max={SPEED_MAX}
-          step={SPEED_STEP}
+        <SpeedSlider
           value={speed}
-          onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-          aria-label="Playback speed"
-          style={{ '--fill': `${((speed - SPEED_MIN) / (SPEED_MAX - SPEED_MIN)) * 100}%` } as React.CSSProperties}
+          onChange={handleSpeedChange}
+          providerId={activeProvider?.providerId ?? null}
+          variant="popup"
         />
-        <div className="speed-chips">
-          {SPEED_CHIPS.map((s) => (
-            <button
-              key={s}
-              className={`chip ${speed === s ? 'active' : ''}`}
-              onClick={() => handleSpeedChange(s)}
-            >
-              {s}x
-            </button>
-          ))}
-        </div>
       </section>
 
       {/* Volume Control */}

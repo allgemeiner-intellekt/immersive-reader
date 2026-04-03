@@ -1,36 +1,40 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MSG, sendMessage } from '@shared/messages';
 import type { ProviderConfig } from '@shared/types';
 import { getProviders, getSettings, getActiveProvider, getProviderGroupKey } from '@shared/storage';
-import { SPEED_MIN, SPEED_MAX, SPEED_STEP } from '@shared/constants';
 import { useToolbarStore } from '../state/store';
-
-const SPEED_CHIPS = [1, 1.25, 1.5, 2];
+import { SpeedSlider } from '@shared/SpeedSlider';
 
 export function ExpandedPanel() {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [activeGroupKey, setActiveGroupKey] = useState<string>('');
-  const { speed, setSpeed, currentChunkIndex, totalChunks, chunkProgress } = useToolbarStore();
+  const { speed, setSpeed, _setProviderId, currentChunkIndex, totalChunks, chunkProgress } = useToolbarStore();
 
   useEffect(() => {
     (async () => {
       const [provs, active] = await Promise.all([getProviders(), getActiveProvider()]);
       setProviders(provs);
-      if (active) setActiveGroupKey(getProviderGroupKey(active));
+      if (active) {
+        setActiveGroupKey(getProviderGroupKey(active));
+        _setProviderId(active.providerId);
+      }
     })();
-  }, []);
+  }, [_setProviderId]);
 
   useEffect(() => {
     const handler = () => {
       (async () => {
         const [provs, active] = await Promise.all([getProviders(), getActiveProvider()]);
         setProviders(provs);
-        if (active) setActiveGroupKey(getProviderGroupKey(active));
+        if (active) {
+          setActiveGroupKey(getProviderGroupKey(active));
+          _setProviderId(active.providerId);
+        }
       })();
     };
     chrome.storage.onChanged.addListener(handler);
     return () => chrome.storage.onChanged.removeListener(handler);
-  }, []);
+  }, [_setProviderId]);
 
   const handleProviderChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -52,6 +56,12 @@ export function ExpandedPanel() {
     },
     [setSpeed],
   );
+
+  const activeProviderId = useMemo(() => {
+    if (!activeGroupKey) return null;
+    // For custom providers, groupKey is "custom:https://...", extract "custom"
+    return activeGroupKey.includes(':') ? activeGroupKey.split(':')[0] : activeGroupKey;
+  }, [activeGroupKey]);
 
   const openSettings = useCallback(() => {
     sendMessage({ type: MSG.OPEN_OPTIONS });
@@ -92,31 +102,12 @@ export function ExpandedPanel() {
       )}
 
       {/* Speed Slider */}
-      <div className="ir-panel-row">
-        <label className="ir-panel-label">Speed</label>
-        <span className="ir-panel-value">{speed.toFixed(2)}x</span>
-      </div>
-      <input
-        type="range"
-        className="ir-panel-slider"
-        min={SPEED_MIN}
-        max={SPEED_MAX}
-        step={SPEED_STEP}
+      <SpeedSlider
         value={speed}
-        onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-        style={{ '--fill': `${((speed - SPEED_MIN) / (SPEED_MAX - SPEED_MIN)) * 100}%` } as React.CSSProperties}
+        onChange={handleSpeedChange}
+        providerId={activeProviderId}
+        variant="panel"
       />
-      <div className="ir-panel-chips">
-        {SPEED_CHIPS.map((s) => (
-          <button
-            key={s}
-            className={`ir-panel-chip ${speed === s ? 'ir-panel-chip--active' : ''}`}
-            onClick={() => handleSpeedChange(s)}
-          >
-            {s}x
-          </button>
-        ))}
-      </div>
 
       {/* Reading Progress */}
       {totalChunks > 0 && (

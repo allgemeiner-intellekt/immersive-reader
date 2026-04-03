@@ -13,7 +13,8 @@ import {
   maskKey,
   generateId,
 } from '@shared/storage';
-import { DEFAULT_SETTINGS, SPEED_MIN, SPEED_MAX, SPEED_STEP } from '@shared/constants';
+import { DEFAULT_SETTINGS } from '@shared/constants';
+import { SpeedSlider } from '@shared/SpeedSlider';
 import { MSG, sendMessage } from '@shared/messages';
 import { useTheme } from '@shared/useTheme';
 import type { ConfigHealth } from '../background/failover';
@@ -743,20 +744,18 @@ export function Options() {
             <h1>Playback</h1>
 
             <div className="settings-card">
-              <label className="setting-row">
-                <span className="setting-label">Default Speed</span>
-                <span className="setting-value">{settings.playback.defaultSpeed.toFixed(2)}x</span>
-              </label>
-              <input
-                type="range"
-                className="slider"
-                min={SPEED_MIN}
-                max={SPEED_MAX}
-                step={SPEED_STEP}
+              <SpeedSlider
                 value={settings.playback.defaultSpeed}
-                onChange={(e) => updatePlayback({ defaultSpeed: parseFloat(e.target.value) })}
-                aria-label="Default speed"
-                style={{ '--fill': `${((settings.playback.defaultSpeed - SPEED_MIN) / (SPEED_MAX - SPEED_MIN)) * 100}%` } as React.CSSProperties}
+                onChange={(speed) => updatePlayback({ defaultSpeed: speed })}
+                providerId={
+                  settings.activeProviderGroup
+                    ? settings.activeProviderGroup.includes(':')
+                      ? settings.activeProviderGroup.split(':')[0]
+                      : settings.activeProviderGroup
+                    : null
+                }
+                showChips={false}
+                variant="settings"
               />
             </div>
 

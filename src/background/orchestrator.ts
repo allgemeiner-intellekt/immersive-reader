@@ -6,7 +6,7 @@ import { getChunkLimits } from '@providers/registry';
 import { playbackState } from './playback-state';
 import { ensureOffscreenDocument } from './offscreen-manager';
 import { startWordTimingRelay, stopWordTimingRelay, onPlaybackProgress } from './word-timing';
-import { LOOKAHEAD_BUFFER_SIZE } from '@shared/constants';
+import { LOOKAHEAD_BUFFER_SIZE, PROVIDER_SPEED_RANGES } from '@shared/constants';
 import { ApiError } from '@shared/api-error';
 import { getCachedVoices, setCachedVoices } from '@providers/voice-cache';
 import {
@@ -271,7 +271,16 @@ export async function skipToChunk(chunkIndex: number): Promise<void> {
 
 export function setSpeed(speed: number): void {
   playbackState.update({ speed });
-  sendToOffscreen({ type: MSG.OFFSCREEN_SET_SPEED, speed }).catch(() => {});
+  // Compute residual playback rate for the currently-playing chunk.
+  // Server-synthesized chunks already have the provider's clamped speed baked in,
+  // so the offscreen player only needs to cover the gap.
+  const providerId = currentSession?.config.providerId;
+  const range = providerId ? PROVIDER_SPEED_RANGES[providerId] ?? null : null;
+  const serverSpeed = range
+    ? Math.min(Math.max(speed, range.min), range.max)
+    : 1.0;
+  const residual = serverSpeed !== 0 ? speed / serverSpeed : speed;
+  sendToOffscreen({ type: MSG.OFFSCREEN_SET_SPEED, speed: residual }).catch(() => {});
 }
 
 export function setVolume(volume: number): void {
@@ -407,9 +416,17 @@ async function synthesizeChunk(tabId: number, chunkIndex: number): Promise<Synth
 
   const provider = getProvider(session.config.providerId);
 
-  // Synthesize using session-locked config and voice
+  // Clamp speed to what the provider supports server-side.
+  // Providers without server-side speed (e.g. Mimo) get speed=1.0;
+  // the residual is handled client-side via playbackRate.
+  const rawSpeed = playbackState.getState().speed;
+  const range = PROVIDER_SPEED_RANGES[session.config.providerId] ?? null;
+  const serverSpeed = range
+    ? Math.min(Math.max(rawSpeed, range.min), range.max)
+    : 1.0;
+
   const result = await provider.synthesize(chunk.text, session.voice, session.config, {
-    speed: playbackState.getState().speed,
+    speed: serverSpeed,
   });
 
   return {
