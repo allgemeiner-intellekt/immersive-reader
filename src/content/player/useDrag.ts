@@ -142,7 +142,7 @@ export function useDrag(toolbarRef: React.RefObject<HTMLDivElement | null>) {
     };
   }, [isDragging, toolbarRef]);
 
-  // Recompute on resize
+  // Recompute on window resize
   useEffect(() => {
     const onResize = () => {
       setPosition((prev) => ({ ...prev })); // trigger re-render
@@ -150,6 +150,18 @@ export function useDrag(toolbarRef: React.RefObject<HTMLDivElement | null>) {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Recompute position when toolbar size changes (e.g. expand/collapse panel)
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el || isDragging) return;
+
+    const observer = new ResizeObserver(() => {
+      setPosition((prev) => ({ ...prev })); // trigger re-render with fresh offsetHeight
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [toolbarRef, isDragging]);
 
   return { getStyle, onMouseDown, isDragging };
 }
