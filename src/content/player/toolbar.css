@@ -95,9 +95,32 @@
   height: 48px;
   border-radius: 9999px;
   display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.ir-toolbar--collapsed .ir-toolbar-controls {
+  display: flex;
   align-items: center;
   padding: 0 12px;
   gap: 8px;
+  height: 48px;
+}
+
+.ir-toolbar--expanded {
+  min-width: 340px;
+  max-width: 400px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ir-toolbar--expanded .ir-toolbar-controls {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  height: 48px;
 }
 
 /* --- Buttons --- */
@@ -393,4 +416,229 @@
 @keyframes ir-toast-out {
   from { opacity: 1; transform: translateY(0) scale(1); }
   to { opacity: 0; transform: translateY(10px) scale(0.95); }
+}
+
+/* --- Entrance Animation --- */
+
+.ir-toolbar-enter {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
+.ir-toolbar-enter-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+/* --- Expand Button --- */
+
+.ir-expand {
+  opacity: 0.6;
+}
+
+.ir-expand:hover {
+  opacity: 1;
+}
+
+.ir-expand-icon {
+  transition: transform 0.2s ease;
+}
+
+.ir-expand--open .ir-expand-icon {
+  transform: rotate(180deg);
+}
+
+/* --- Expanded Panel --- */
+
+.ir-expanded-panel {
+  padding: 8px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--ir-border);
+  animation: ir-panel-in 0.2s ease-out;
+}
+
+@keyframes ir-panel-in {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 300px; }
+}
+
+.ir-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ir-panel-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ir-text-muted);
+}
+
+.ir-panel-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ir-text);
+}
+
+/* Provider Select */
+
+.ir-panel-select {
+  flex: 1;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--ir-border);
+  background: var(--ir-btn-hover);
+  color: var(--ir-text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+.ir-panel-select:focus {
+  border-color: var(--ir-accent);
+}
+
+.ir-panel-select option {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+:host(.light) .ir-panel-select option {
+  background: #fff;
+  color: #1a1a2e;
+}
+
+/* Speed Slider */
+
+.ir-panel-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--ir-accent) 0%,
+    var(--ir-accent) var(--fill, 0%),
+    var(--ir-volume-track) var(--fill, 0%),
+    var(--ir-volume-track) 100%
+  );
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.ir-panel-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--ir-volume-thumb);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.ir-panel-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--ir-volume-thumb);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+
+/* Speed Chips */
+
+.ir-panel-chips {
+  display: flex;
+  gap: 4px;
+}
+
+.ir-panel-chip {
+  flex: 1;
+  padding: 3px 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--ir-btn-hover);
+  color: var(--ir-text);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ir-panel-chip:hover {
+  background: var(--ir-btn-active);
+}
+
+.ir-panel-chip--active {
+  background: var(--ir-accent);
+  color: #fff;
+}
+
+/* Progress */
+
+.ir-panel-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ir-panel-meta {
+  font-size: 11px;
+  color: var(--ir-text-muted);
+}
+
+.ir-panel-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--ir-progress-track);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ir-panel-progress-fill {
+  height: 100%;
+  background: var(--ir-accent);
+  border-radius: 2px;
+  transition: width 0.15s linear;
+}
+
+/* Settings Button */
+
+.ir-panel-settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--ir-btn-hover);
+  color: var(--ir-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ir-panel-settings-btn:hover {
+  background: var(--ir-btn-active);
+  color: var(--ir-text);
 }

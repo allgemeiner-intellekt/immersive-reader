@@ -67,7 +67,8 @@ function isContentMessage(message: ExtensionMessage): boolean {
     message.type === MSG.STOP ||
     message.type === MSG.FAILOVER_NOTICE ||
     message.type === MSG.GET_PAGE_URL ||
-    message.type === MSG.RESUME_FROM_PROGRESS
+    message.type === MSG.RESUME_FROM_PROGRESS ||
+    message.type === MSG.SHOW_TOOLBAR
   );
 }
 
@@ -255,6 +256,14 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     case MSG.RESUME_FROM_PROGRESS: {
       if ('chunkIndex' in message) {
         store._showToast(`Resuming from where you left off`);
+      }
+      return { ok: true };
+    }
+
+    case MSG.SHOW_TOOLBAR: {
+      store.showToolbar();
+      if (message.error) {
+        store._showToast(message.error);
       }
       return { ok: true };
     }

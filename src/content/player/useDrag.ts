@@ -18,10 +18,11 @@ function getDefaultPosition(): DragState {
 function computePositionFromSnap(
   snap: SnapPosition,
   toolbarWidth: number,
+  toolbarHeight: number,
 ): { x: number; y: number } {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const bottom = vh - 48 - EDGE_MARGIN; // 48px toolbar height
+  const bottom = vh - toolbarHeight - EDGE_MARGIN;
 
   switch (snap) {
     case 'bottom-left':
@@ -78,7 +79,8 @@ export function useDrag(toolbarRef: React.RefObject<HTMLDivElement | null>) {
       };
     }
 
-    const pos = computePositionFromSnap(position.snap, width);
+    const height = el?.offsetHeight ?? 48;
+    const pos = computePositionFromSnap(position.snap, width, height);
     return {
       position: 'fixed',
       left: `${pos.x}px`,
@@ -91,7 +93,7 @@ export function useDrag(toolbarRef: React.RefObject<HTMLDivElement | null>) {
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
       // Only drag from the toolbar background, not buttons
-      if ((e.target as HTMLElement).closest('button, input')) return;
+      if ((e.target as HTMLElement).closest('button, input, select')) return;
 
       const el = toolbarRef.current;
       if (!el) return;

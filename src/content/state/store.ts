@@ -14,6 +14,7 @@ export interface ToolbarState {
 
   // UI
   toolbarVisible: boolean;
+  expanded: boolean;
 
   // Provider info
   providerName: string;
@@ -34,6 +35,8 @@ export interface ToolbarState {
   setVolume: (volume: number) => void;
   showToolbar: () => void;
   hideToolbar: () => void;
+  toggleExpanded: () => void;
+  setExpanded: (expanded: boolean) => void;
 
   // State updates (called from message listeners)
   _setPlaybackStatus: (status: PlaybackStatus) => void;
@@ -52,6 +55,7 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
   speed: 1.0,
   volume: 1.0,
   toolbarVisible: false,
+  expanded: false,
   providerName: '',
   toastMessage: null,
 
@@ -77,6 +81,7 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
       currentChunkIndex: 0,
       chunkProgress: 0,
       toolbarVisible: false,
+      expanded: false,
     });
   },
 
@@ -118,7 +123,15 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
   },
 
   hideToolbar: () => {
-    set({ toolbarVisible: false });
+    set({ toolbarVisible: false, expanded: false });
+  },
+
+  toggleExpanded: () => {
+    set((s) => ({ expanded: !s.expanded }));
+  },
+
+  setExpanded: (expanded: boolean) => {
+    set({ expanded });
   },
 
   _setPlaybackStatus: (status) => set({ playbackStatus: status }),

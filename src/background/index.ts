@@ -1,13 +1,17 @@
 import { ensureOffscreenDocument } from './offscreen-manager';
 import { routeMessage } from './message-router';
 import { playbackState } from './playback-state';
-import { cleanOldProgress } from '@shared/storage';
+import { cleanOldProgress, getActiveProvider } from '@shared/storage';
+import { MSG, sendTabMessage } from '@shared/messages';
 import {
   startPlayback,
   pausePlayback,
   resumePlayback,
+  stopPlayback,
   skipForward,
   skipBackward,
+  getActiveTab,
+  ensureContentScript,
 } from './orchestrator';
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -71,6 +75,63 @@ chrome.commands.onCommand.addListener(async (command) => {
         skipBackward().catch(console.error);
       }
       break;
+  }
+});
+
+// Extension icon click → auto-start reading or toggle playback
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab.id) return;
+
+  const status = playbackState.getStatus();
+  const activeTab = getActiveTab();
+
+  // If playing/paused on a different tab, stop that and start fresh on this tab
+  if (status !== 'idle' && status !== 'loading' && activeTab !== null && activeTab !== tab.id) {
+    stopPlayback();
+    // Forward STOP to old tab for cleanup
+    chrome.tabs.sendMessage(activeTab, { type: MSG.STOP }).catch(() => {});
+  }
+
+  if (status === 'playing' && activeTab === tab.id) {
+    pausePlayback();
+    return;
+  }
+
+  if (status === 'paused' && activeTab === tab.id) {
+    resumePlayback().catch(console.error);
+    return;
+  }
+
+  if (status === 'loading') return; // debounce
+
+  // Idle (or switched tab) → start reading
+  try {
+    const provider = await getActiveProvider();
+    if (!provider) {
+      // No provider configured — show toolbar with error, then open settings
+      await ensureContentScript(tab.id);
+      sendTabMessage(tab.id, { type: MSG.SHOW_TOOLBAR, error: 'No TTS provider configured' }).catch(() => {});
+      setTimeout(() => chrome.runtime.openOptionsPage(), 1000);
+      return;
+    }
+    await startPlayback(tab.id);
+  } catch (err) {
+    console.error('Icon click: failed to start playback', err);
+    chrome.action.setBadgeText({ text: '!' });
+    setTimeout(() => chrome.action.setBadgeText({ text: '' }), 2000);
+  }
+});
+
+// Right-click context menu on extension icon → open settings
+chrome.contextMenus.create({
+  id: 'ir-settings',
+  title: 'Immersive Reader Settings',
+  contexts: ['action'],
+});
+
+chrome.contextMenus.onClicked.addListener((info) => {
+  if (info.menuItemId === 'ir-settings') {
+    chrome.runtime.openOptionsPage();
   }
 });
 

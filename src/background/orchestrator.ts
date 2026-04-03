@@ -70,7 +70,7 @@ async function sendToOffscreen(message: Record<string, unknown>): Promise<void> 
 }
 
 // Ensure the content script is injected into the tab
-async function ensureContentScript(tabId: number): Promise<void> {
+export async function ensureContentScript(tabId: number): Promise<void> {
   try {
     // Try pinging the content script
     await chrome.tabs.sendMessage(tabId, { type: MSG.GET_PAGE_INFO });

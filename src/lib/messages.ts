@@ -56,6 +56,9 @@ export const MSG = {
 
   // Settings
   SETTINGS_CHANGED: 'SETTINGS_CHANGED',
+
+  // Toolbar UI (SW → content)
+  SHOW_TOOLBAR: 'SHOW_TOOLBAR',
 } as const;
 
 export type MessageType = (typeof MSG)[keyof typeof MSG];
@@ -263,6 +266,11 @@ export interface SettingsChangedMessage {
   settings: AppSettings;
 }
 
+export interface ShowToolbarMessage {
+  type: typeof MSG.SHOW_TOOLBAR;
+  error?: string;
+}
+
 export type ExtensionMessage =
   | PlayMessage
   | PauseMessage
@@ -299,7 +307,8 @@ export type ExtensionMessage =
   | FailoverNoticeMessage
   | GetPageUrlMessage
   | ResumeFromProgressMessage
-  | SettingsChangedMessage;
+  | SettingsChangedMessage
+  | ShowToolbarMessage;
 
 // Helper to send a message and get a typed response
 export function sendMessage<T = unknown>(message: ExtensionMessage): Promise<T> {

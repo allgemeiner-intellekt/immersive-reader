@@ -227,3 +227,31 @@ export function CloseButton({ onClick }: CloseButtonProps) {
     </button>
   );
 }
+
+// --- ExpandButton ---
+
+interface ExpandButtonProps {
+  expanded: boolean;
+  onClick: () => void;
+}
+
+export function ExpandButton({ expanded, onClick }: ExpandButtonProps) {
+  return (
+    <button
+      className={`ir-btn ir-expand${expanded ? ' ir-expand--open' : ''}`}
+      onClick={onClick}
+      title={expanded ? 'Collapse' : 'Expand'}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+        className="ir-expand-icon"
+      >
+        <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z" />
+      </svg>
+    </button>
+  );
+}

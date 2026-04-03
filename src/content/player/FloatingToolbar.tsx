@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useToolbarStore } from '../state/store';
 import {
   PlayPauseWithProgress,
@@ -6,7 +6,9 @@ import {
   SpeedChip,
   VolumeSlider,
   CloseButton,
+  ExpandButton,
 } from './ToolbarControls';
+import { ExpandedPanel } from './ExpandedPanel';
 import { useDrag } from './useDrag';
 
 export function FloatingToolbar() {
@@ -19,6 +21,7 @@ export function FloatingToolbar() {
     speed,
     volume,
     toolbarVisible,
+    expanded,
     toastMessage,
     play,
     pause,
@@ -29,9 +32,28 @@ export function FloatingToolbar() {
     cycleSpeed,
     setVolume,
     hideToolbar,
+    toggleExpanded,
   } = useToolbarStore();
 
   const { getStyle, onMouseDown } = useDrag(toolbarRef);
+
+  // Entrance animation: track when toolbar becomes visible
+  const [animClass, setAnimClass] = useState('');
+  const prevVisible = useRef(false);
+
+  useEffect(() => {
+    if (toolbarVisible && !prevVisible.current) {
+      setAnimClass('ir-toolbar-enter');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setAnimClass('ir-toolbar-enter ir-toolbar-enter-active');
+        });
+      });
+    } else if (!toolbarVisible) {
+      setAnimClass('');
+    }
+    prevVisible.current = toolbarVisible;
+  }, [toolbarVisible]);
 
   if (!toolbarVisible) return null;
 
@@ -62,23 +84,27 @@ export function FloatingToolbar() {
     {toast}
     <div
       ref={toolbarRef}
-      className="ir-toolbar ir-toolbar--collapsed"
+      className={`ir-toolbar ${expanded ? 'ir-toolbar--expanded' : 'ir-toolbar--collapsed'} ${animClass}`}
       style={getStyle()}
       onMouseDown={onMouseDown}
     >
-      <SkipButton direction="backward" onClick={skipBackward} />
-      <PlayPauseWithProgress
-        isPlaying={isPlaying}
-        isLoading={isLoading}
-        onClick={handlePlayPause}
-        progress={chunkProgress}
-        chunkIndex={currentChunkIndex}
-        totalChunks={totalChunks}
-      />
-      <SkipButton direction="forward" onClick={skipForward} />
-      <VolumeSlider volume={volume} onChange={setVolume} />
-      <SpeedChip speed={speed} onClick={cycleSpeed} />
-      <CloseButton onClick={handleClose} />
+      <div className="ir-toolbar-controls">
+        <SkipButton direction="backward" onClick={skipBackward} />
+        <PlayPauseWithProgress
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          onClick={handlePlayPause}
+          progress={chunkProgress}
+          chunkIndex={currentChunkIndex}
+          totalChunks={totalChunks}
+        />
+        <SkipButton direction="forward" onClick={skipForward} />
+        <VolumeSlider volume={volume} onChange={setVolume} />
+        <SpeedChip speed={speed} onClick={cycleSpeed} />
+        <ExpandButton expanded={expanded} onClick={toggleExpanded} />
+        <CloseButton onClick={handleClose} />
+      </div>
+      {expanded && <ExpandedPanel />}
     </div>
     </>
   );

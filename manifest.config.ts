@@ -10,7 +10,7 @@ export default defineManifest({
     '48': 'public/icons/icon-48.png',
     '128': 'public/icons/icon-128.png',
   },
-  permissions: ['offscreen', 'storage', 'activeTab', 'scripting', 'alarms'],
+  permissions: ['offscreen', 'storage', 'activeTab', 'scripting', 'alarms', 'contextMenus'],
   background: {
     service_worker: 'src/background/index.ts',
     type: 'module',
@@ -23,7 +23,6 @@ export default defineManifest({
     },
   ],
   action: {
-    default_popup: 'src/popup/index.html',
     default_icon: {
       '16': 'public/icons/icon-16.png',
       '48': 'public/icons/icon-48.png',
