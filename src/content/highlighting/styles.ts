@@ -35,11 +35,29 @@ export function removeHighlightStyles(styleEl: HTMLStyleElement): void {
   styleEl.remove();
 }
 
+/**
+ * Parse an rgba/rgb color string and derive accent colors for underline and glow.
+ */
+function deriveAccentColors(rgbaColor: string): { underline: string; glow: string } {
+  const match = rgbaColor.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
+  if (!match) {
+    return { underline: rgbaColor, glow: rgbaColor };
+  }
+  const [, r, g, b] = match;
+  return {
+    underline: `rgba(${r}, ${g}, ${b}, 0.7)`,
+    glow: `rgba(${r}, ${g}, ${b}, 0.25)`,
+  };
+}
+
 function buildCSS(settings: HighlightSettings): string {
+  const wordAccent = deriveAccentColors(settings.wordColor);
+
   return `
 /* CSS Custom Highlight API styles */
 ::highlight(ir-word) {
   background-color: ${settings.wordColor};
+  text-shadow: 0 0 8px ${wordAccent.glow};
 }
 ::highlight(ir-sentence) {
   background-color: ${settings.sentenceColor};
@@ -57,23 +75,25 @@ html.ir-scrub-active { cursor: pointer; }
 mark.ir-word-mark {
   background-color: ${settings.wordColor};
   color: inherit;
-  padding: 0;
+  padding: 0 1px;
   margin: 0;
-  border-radius: 2px;
+  border-radius: 3px;
+  box-shadow: 0 0 6px ${wordAccent.glow};
+  transition: background-color 0.15s ease;
 }
 mark.ir-sentence-mark {
   background-color: ${settings.sentenceColor};
   color: inherit;
   padding: 0;
   margin: 0;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 mark.ir-scrub-hover-mark {
   background-color: rgba(0, 0, 0, 0.06);
   color: inherit;
   padding: 0;
   margin: 0;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 `;
 }

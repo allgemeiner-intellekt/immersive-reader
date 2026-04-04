@@ -12,8 +12,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     skipReferences: false,
   },
   highlight: {
-    wordColor: 'rgba(59, 130, 246, 0.4)', // blue
-    sentenceColor: 'rgba(59, 130, 246, 0.1)', // light blue
+    wordColor: 'rgba(59, 130, 246, 0.35)', // blue
+    sentenceColor: 'rgba(59, 130, 246, 0.08)', // light blue
     wordEnabled: true,
     sentenceEnabled: true,
     autoScroll: true,

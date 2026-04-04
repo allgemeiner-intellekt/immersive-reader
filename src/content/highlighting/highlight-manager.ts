@@ -34,8 +34,11 @@ export class HighlightManager {
 
     if (this.useNativeHighlight) {
       this.wordHighlight = new Highlight();
+      this.wordHighlight.priority = 2;
       this.sentenceHighlight = new Highlight();
+      this.sentenceHighlight.priority = 0;
       this.scrubHoverHighlight = new Highlight();
+      this.scrubHoverHighlight.priority = 1;
       CSS.highlights.set('ir-word', this.wordHighlight);
       CSS.highlights.set('ir-sentence', this.sentenceHighlight);
       CSS.highlights.set('ir-scrub-hover', this.scrubHoverHighlight);
