@@ -1,4 +1,4 @@
-import type { TextMapResult, TextNodeEntry, HighlightSettings } from '@shared/types';
+import type { TextMapResult, TextNodeEntry, ResolvedHighlightSettings } from '@shared/types';
 import { buildTextNodeMap } from '../extraction/dom-mapper';
 import { createRangeFromOffsets } from './utils';
 import { injectHighlightStyles, updateHighlightStyles, removeHighlightStyles } from './styles';
@@ -16,11 +16,11 @@ export class HighlightManager {
   private wordHighlight: Highlight | null = null;
   private sentenceHighlight: Highlight | null = null;
   private scrubHoverHighlight: Highlight | null = null;
-  private settings: HighlightSettings;
+  private settings: ResolvedHighlightSettings;
   private useNativeHighlight: boolean;
   private markElements: HTMLElement[] = [];
 
-  constructor(settings: HighlightSettings) {
+  constructor(settings: ResolvedHighlightSettings) {
     this.settings = settings;
     this.useNativeHighlight = typeof CSS !== 'undefined' && 'highlights' in CSS;
   }
@@ -148,7 +148,7 @@ export class HighlightManager {
     this.clearScrubHover();
   }
 
-  updateColors(settings: HighlightSettings): void {
+  updateColors(settings: ResolvedHighlightSettings): void {
     this.settings = settings;
     if (this.styleEl) {
       updateHighlightStyles(this.styleEl, settings);

@@ -13,13 +13,14 @@ import {
   maskKey,
   generateId,
 } from '@shared/storage';
-import { DEFAULT_SETTINGS } from '@shared/constants';
+import { DEFAULT_SETTINGS, THEME_COLOR_PRESETS } from '@shared/constants';
+import { highlightColorsFromAccent } from '@shared/accent-colors';
 import { SpeedSlider } from '@shared/SpeedSlider';
 import { MSG, sendMessage } from '@shared/messages';
 import { useTheme } from '@shared/useTheme';
 import type { ConfigHealth } from '../background/failover';
 
-type Section = 'appearance' | 'providers' | 'voices' | 'playback' | 'highlighting' | 'hotkeys' | 'advanced';
+type Section = 'appearance' | 'providers' | 'voices' | 'playback' | 'hotkeys' | 'advanced';
 
 // Inline SVG icon paths for nav (16x16, stroke-based)
 const NAV_ICONS: Record<Section, string> = {
@@ -27,7 +28,6 @@ const NAV_ICONS: Record<Section, string> = {
   providers: 'M7 11l5-5m0 0v4m0-4H8M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   voices: 'M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zm-7 8v1a7 7 0 0014 0v-1m-7 8v4',
   playback: 'M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z',
-  highlighting: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z',
   hotkeys: 'M6 13h12M6 17h12M6 9h12M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2z',
   advanced: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066zM15 12a3 3 0 11-6 0 3 3 0 016 0z',
 };
@@ -37,13 +37,12 @@ const NAV_ITEMS: { id: Section; label: string }[] = [
   { id: 'providers', label: 'Providers' },
   { id: 'voices', label: 'Voices' },
   { id: 'playback', label: 'Playback' },
-  { id: 'highlighting', label: 'Highlighting' },
   { id: 'hotkeys', label: 'Hotkeys' },
   { id: 'advanced', label: 'Advanced' },
 ];
 
-const HIGHLIGHT_COLORS = [
-  'rgba(59, 130, 246, 0.35)',
+// Extra highlight color overrides (beyond the accent-derived default)
+const EXTRA_WORD_COLORS = [
   'rgba(239, 68, 68, 0.35)',
   'rgba(34, 197, 94, 0.35)',
   'rgba(234, 179, 8, 0.35)',
@@ -51,8 +50,7 @@ const HIGHLIGHT_COLORS = [
   'rgba(236, 72, 153, 0.35)',
 ];
 
-const SENTENCE_COLORS = [
-  'rgba(59, 130, 246, 0.08)',
+const EXTRA_SENTENCE_COLORS = [
   'rgba(239, 68, 68, 0.08)',
   'rgba(34, 197, 94, 0.08)',
   'rgba(234, 179, 8, 0.08)',
@@ -415,6 +413,105 @@ export function Options() {
                     ? 'Always use light theme.'
                     : 'Always use dark theme.'}
               </p>
+            </div>
+            <div className="settings-card">
+              <div className="setting-row">
+                <span className="setting-label">Accent color</span>
+              </div>
+              <div className="color-swatches">
+                {THEME_COLOR_PRESETS.map((c) => (
+                  <button
+                    key={c}
+                    className={`swatch${(settings.themeColor ?? '#3b82f6') === c ? ' swatch-active' : ''}`}
+                    style={{ background: c }}
+                    onClick={() => {
+                      const updated = { ...settings, themeColor: c };
+                      saveSettings(updated).then(() => setSettings(updated));
+                    }}
+                    aria-label="Select accent color"
+                  />
+                ))}
+              </div>
+              <p className="setting-desc" style={{ marginTop: '12px' }}>
+                Controls the color of buttons, toggles, and other UI elements.
+                Highlight colors follow the accent by default.
+              </p>
+            </div>
+
+            <div className="settings-card">
+              <label className="setting-row toggle-row">
+                <span className="setting-label">Word highlighting</span>
+                <input
+                  type="checkbox"
+                  className="toggle"
+                  checked={settings.highlight.wordEnabled}
+                  onChange={(e) => updateHighlight({ wordEnabled: e.target.checked })}
+                />
+              </label>
+              {settings.highlight.wordEnabled && (
+                <div className="color-swatches">
+                  <button
+                    className={`swatch${settings.highlight.wordColor === null ? ' swatch-active' : ''}`}
+                    style={{ background: highlightColorsFromAccent(settings.themeColor).wordColor }}
+                    onClick={() => updateHighlight({ wordColor: null })}
+                    aria-label="Follow accent color"
+                    title="Follow accent"
+                  />
+                  {EXTRA_WORD_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      className={`swatch${settings.highlight.wordColor === c ? ' swatch-active' : ''}`}
+                      style={{ background: c }}
+                      onClick={() => updateHighlight({ wordColor: c })}
+                      aria-label="Select word highlight color"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="settings-card">
+              <label className="setting-row toggle-row">
+                <span className="setting-label">Sentence highlighting</span>
+                <input
+                  type="checkbox"
+                  className="toggle"
+                  checked={settings.highlight.sentenceEnabled}
+                  onChange={(e) => updateHighlight({ sentenceEnabled: e.target.checked })}
+                />
+              </label>
+              {settings.highlight.sentenceEnabled && (
+                <div className="color-swatches">
+                  <button
+                    className={`swatch${settings.highlight.sentenceColor === null ? ' swatch-active' : ''}`}
+                    style={{ background: highlightColorsFromAccent(settings.themeColor).sentenceColor }}
+                    onClick={() => updateHighlight({ sentenceColor: null })}
+                    aria-label="Follow accent color"
+                    title="Follow accent"
+                  />
+                  {EXTRA_SENTENCE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      className={`swatch${settings.highlight.sentenceColor === c ? ' swatch-active' : ''}`}
+                      style={{ background: c }}
+                      onClick={() => updateHighlight({ sentenceColor: c })}
+                      aria-label="Select sentence highlight color"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="settings-card">
+              <label className="setting-row toggle-row">
+                <span className="setting-label">Auto-scroll to highlighted text</span>
+                <input
+                  type="checkbox"
+                  className="toggle"
+                  checked={settings.highlight.autoScroll}
+                  onChange={(e) => updateHighlight({ autoScroll: e.target.checked })}
+                />
+              </label>
             </div>
           </div>
         )}
@@ -825,75 +922,6 @@ export function Options() {
                   className="toggle"
                   checked={settings.playback.skipReferences}
                   onChange={(e) => updatePlayback({ skipReferences: e.target.checked })}
-                />
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* === Highlighting === */}
-        {section === 'highlighting' && (
-          <div className="section-content">
-            <h1>Highlighting</h1>
-
-            <div className="settings-card">
-              <label className="setting-row toggle-row">
-                <span className="setting-label">Word highlighting</span>
-                <input
-                  type="checkbox"
-                  className="toggle"
-                  checked={settings.highlight.wordEnabled}
-                  onChange={(e) => updateHighlight({ wordEnabled: e.target.checked })}
-                />
-              </label>
-              {settings.highlight.wordEnabled && (
-                <div className="color-swatches">
-                  {HIGHLIGHT_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      className={`swatch ${settings.highlight.wordColor === c ? 'swatch-active' : ''}`}
-                      style={{ background: c }}
-                      onClick={() => updateHighlight({ wordColor: c })}
-                      aria-label={`Select word highlight color ${c}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="settings-card">
-              <label className="setting-row toggle-row">
-                <span className="setting-label">Sentence highlighting</span>
-                <input
-                  type="checkbox"
-                  className="toggle"
-                  checked={settings.highlight.sentenceEnabled}
-                  onChange={(e) => updateHighlight({ sentenceEnabled: e.target.checked })}
-                />
-              </label>
-              {settings.highlight.sentenceEnabled && (
-                <div className="color-swatches">
-                  {SENTENCE_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      className={`swatch ${settings.highlight.sentenceColor === c ? 'swatch-active' : ''}`}
-                      style={{ background: c }}
-                      onClick={() => updateHighlight({ sentenceColor: c })}
-                      aria-label={`Select sentence highlight color ${c}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="settings-card">
-              <label className="setting-row toggle-row">
-                <span className="setting-label">Auto-scroll to highlighted text</span>
-                <input
-                  type="checkbox"
-                  className="toggle"
-                  checked={settings.highlight.autoScroll}
-                  onChange={(e) => updateHighlight({ autoScroll: e.target.checked })}
                 />
               </label>
             </div>

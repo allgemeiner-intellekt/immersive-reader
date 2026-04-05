@@ -4,6 +4,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activeProviderGroup: null,
   activeVoiceId: null,
   theme: 'system' as ThemeMode,
+  themeColor: null,
   playback: {
     defaultSpeed: 1.0,
     defaultVolume: 1.0,
@@ -12,14 +13,25 @@ export const DEFAULT_SETTINGS: AppSettings = {
     skipReferences: false,
   },
   highlight: {
-    wordColor: 'rgba(59, 130, 246, 0.35)', // blue
-    sentenceColor: 'rgba(59, 130, 246, 0.08)', // light blue
+    wordColor: null, // null = follow accent color
+    sentenceColor: null, // null = follow accent color
     wordEnabled: true,
     sentenceEnabled: true,
     autoScroll: true,
   },
   onboardingComplete: false,
 };
+
+export const THEME_COLOR_PRESETS = [
+  '#3b82f6', // Blue (default)
+  '#8b5cf6', // Violet
+  '#ec4899', // Pink
+  '#ef4444', // Red
+  '#f97316', // Orange
+  '#22c55e', // Green
+  '#06b6d4', // Cyan
+  '#6366f1', // Indigo
+];
 
 export const SPEED_DEFAULT_MIN = 0.5;
 export const SPEED_DEFAULT_MAX = 2.0;

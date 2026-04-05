@@ -106,6 +106,15 @@ export type ThemeMode = 'system' | 'light' | 'dark';
 // === Settings Types ===
 
 export interface HighlightSettings {
+  wordColor: string | null;
+  sentenceColor: string | null;
+  wordEnabled: boolean;
+  sentenceEnabled: boolean;
+  autoScroll: boolean;
+}
+
+/** Resolved highlight settings — colors are always concrete strings, never null. */
+export interface ResolvedHighlightSettings {
   wordColor: string;
   sentenceColor: string;
   wordEnabled: boolean;
@@ -129,6 +138,7 @@ export interface AppSettings {
   playback: PlaybackSettings;
   highlight: HighlightSettings;
   theme: ThemeMode;
+  themeColor: string | null;
   onboardingComplete: boolean;
 }
 

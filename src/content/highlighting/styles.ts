@@ -1,4 +1,4 @@
-import type { HighlightSettings } from '@shared/types';
+import type { ResolvedHighlightSettings } from '@shared/types';
 
 const STYLE_ID = 'ir-highlight-styles';
 
@@ -6,7 +6,7 @@ const STYLE_ID = 'ir-highlight-styles';
  * Inject a <style> element with highlight CSS rules.
  * Includes both CSS Custom Highlight API pseudo-elements and fallback mark classes.
  */
-export function injectHighlightStyles(settings: HighlightSettings): HTMLStyleElement {
+export function injectHighlightStyles(settings: ResolvedHighlightSettings): HTMLStyleElement {
   // Remove existing style if present
   const existing = document.getElementById(STYLE_ID);
   if (existing) existing.remove();
@@ -23,7 +23,7 @@ export function injectHighlightStyles(settings: HighlightSettings): HTMLStyleEle
  */
 export function updateHighlightStyles(
   styleEl: HTMLStyleElement,
-  settings: HighlightSettings,
+  settings: ResolvedHighlightSettings,
 ): void {
   styleEl.textContent = buildCSS(settings);
 }
@@ -50,7 +50,7 @@ function deriveAccentColors(rgbaColor: string): { underline: string; glow: strin
   };
 }
 
-function buildCSS(settings: HighlightSettings): string {
+function buildCSS(settings: ResolvedHighlightSettings): string {
   const wordAccent = deriveAccentColors(settings.wordColor);
 
   return `

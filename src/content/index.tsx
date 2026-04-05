@@ -1,11 +1,12 @@
 import { MSG, type ExtensionMessage } from '@shared/messages';
-import type { TextChunk, HighlightSettings } from '@shared/types';
+import type { TextChunk } from '@shared/types';
 import { extractContent } from './extraction/extractor';
 import { getSelectedText } from './extraction/selection';
 import { chunkText } from '@shared/chunker';
 import { mountToolbar } from './mount';
 import { useToolbarStore } from './state/store';
 import { getSettings } from '@shared/storage';
+import { resolveHighlightSettings } from '@shared/accent-colors';
 import { HighlightManager } from './highlighting/highlight-manager';
 import {
   initAutoScroll,
@@ -90,7 +91,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== 'local' || !changes['ir-settings']) return;
   const newSettings = changes['ir-settings'].newValue;
   if (newSettings?.highlight && highlightManager) {
-    highlightManager.updateColors(newSettings.highlight as HighlightSettings);
+    const resolved = resolveHighlightSettings(newSettings.highlight, newSettings.themeColor ?? null);
+    highlightManager.updateColors(resolved);
   }
 });
 
@@ -129,8 +131,9 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
 
       // Initialize highlighting
       const settings = await getSettings();
+      const resolvedHighlight = resolveHighlightSettings(settings.highlight, settings.themeColor);
       highlightManager?.destroy();
-      highlightManager = new HighlightManager(settings.highlight);
+      highlightManager = new HighlightManager(resolvedHighlight);
       // Always init highlighting — fallback to document.body if no source element
       highlightManager.init(sourceEl ?? document.body);
 
