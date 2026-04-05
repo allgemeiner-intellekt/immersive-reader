@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <!-- Book — two curved pages meeting at a spine -->
+  <g fill="none" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Spine -->
+    <line x1="64" y1="50" x2="64" y2="96"/>
+
+    <!-- Left page (convex curve outward to the left) -->
+    <path d="M64 50 Q44 46 28 52 L28 92 Q44 86 64 90" fill="white" fill-opacity="0.25"/>
+
+    <!-- Right page (convex curve outward to the right) -->
+    <path d="M64 50 Q84 46 100 52 L100 92 Q84 86 64 90" fill="white" fill-opacity="0.25"/>
+
+    <!-- Text lines on left page -->
+    <line x1="38" y1="64" x2="56" y2="62" stroke-width="3" opacity="0.5"/>
+    <line x1="36" y1="74" x2="54" y2="72" stroke-width="3" opacity="0.5"/>
+
+    <!-- Text lines on right page -->
+    <line x1="72" y1="62" x2="90" y2="64" stroke-width="3" opacity="0.5"/>
+    <line x1="74" y1="72" x2="92" y2="74" stroke-width="3" opacity="0.5"/>
+  </g>
+
+  <!-- Sound waves — 2 short thick rounded arcs -->
+  <g fill="none" stroke="white" stroke-width="4.5" stroke-linecap="round">
+    <path d="M56 38 Q64 28 72 38"/>
+    <path d="M50 28 Q64 14 78 28"/>
+  </g>
+</svg>

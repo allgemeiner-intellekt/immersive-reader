@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF6B6B"/>
+      <stop offset="100%" stop-color="#E84393"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <!-- Book: left page -->
+  <path d="M24 88 C24 88 28 50 64 48 L64 88 Z" fill="white" opacity="0.95"/>
+
+  <!-- Book: right page -->
+  <path d="M104 88 C104 88 100 50 64 48 L64 88 Z" fill="white" opacity="0.95"/>
+
+  <!-- Spine shadow on left page -->
+  <path d="M64 48 L64 88 L60 88 C60 88 60 52 64 48 Z" fill="white" opacity="0.6"/>
+
+  <!-- Spine shadow on right page -->
+  <path d="M64 48 L64 88 L68 88 C68 88 68 52 64 48 Z" fill="white" opacity="0.6"/>
+
+  <!-- Sound wave arcs -->
+  <path d="M52 44 C58 36 70 36 76 44" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" opacity="0.95"/>
+  <path d="M46 38 C54 26 74 26 82 38" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+  <path d="M40 32 C50 16 78 16 88 32" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" opacity="0.45"/>
+</svg>

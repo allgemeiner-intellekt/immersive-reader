@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <!-- Background gradient: rich teal -->
+    <linearGradient id="bg-c" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0D9488"/>
+      <stop offset="100%" stop-color="#065F56"/>
+    </linearGradient>
+
+    <!-- Page glow from the spine -->
+    <radialGradient id="page-glow" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0%" stop-color="#FFFDE8" stop-opacity="1"/>
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#E2E8F0" stop-opacity="0.85"/>
+    </radialGradient>
+
+    <!-- Soft glow filter for the book center -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <filter id="outer-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="128" height="128" rx="28" fill="url(#bg-c)"/>
+
+  <!-- Ambient glow behind book -->
+  <ellipse cx="64" cy="72" rx="32" ry="18" fill="#FFFDE8" opacity="0.15" filter="url(#outer-glow)"/>
+
+  <!-- Book: left page -->
+  <path d="M26 90 C26 90 30 54 64 52 L64 90 Z" fill="url(#page-glow)" opacity="0.95"/>
+
+  <!-- Book: right page -->
+  <path d="M102 90 C102 90 98 54 64 52 L64 90 Z" fill="url(#page-glow)" opacity="0.95"/>
+
+  <!-- Spine highlight (warm glow line) -->
+  <line x1="64" y1="52" x2="64" y2="90" stroke="#FFFDE8" stroke-width="2.5" opacity="0.7" filter="url(#glow)"/>
+
+  <!-- Spine crease shadows -->
+  <path d="M64 52 L64 90 L60.5 90 C60.5 90 61 56 64 52 Z" fill="white" opacity="0.5"/>
+  <path d="M64 52 L64 90 L67.5 90 C67.5 90 67 56 64 52 Z" fill="white" opacity="0.5"/>
+
+  <!-- Text lines on left page -->
+  <line x1="36" y1="66" x2="58" y2="64" stroke="#065F56" stroke-width="1.2" stroke-linecap="round" opacity="0.18"/>
+  <line x1="34" y1="72" x2="58" y2="70" stroke="#065F56" stroke-width="1.2" stroke-linecap="round" opacity="0.14"/>
+  <line x1="32" y1="78" x2="58" y2="76" stroke="#065F56" stroke-width="1.2" stroke-linecap="round" opacity="0.10"/>
+
+  <!-- Text lines on right page -->
+  <line x1="70" y1="64" x2="92" y2="66" stroke="#065F56" stroke-width="1.2" stroke-linecap="round" opacity="0.18"/>
+  <line x1="70" y1="70" x2="94" y2="72" stroke="#065F56" stroke-width="1.2" stroke-linecap="round" opacity="0.14"/>
+  <line x1="70" y1="76" x2="96" y2="78" stroke="#065F56" stroke-width="1.2" stroke-linecap="round" opacity="0.10"/>
+
+  <!-- Sound waves: smooth sine-wave paths floating upward -->
+  <!-- Wave 1 (closest, smallest, most opaque) -->
+  <path d="M52 48 C56 44 60 50 64 46 C68 42 72 48 76 44"
+        fill="none" stroke="white" stroke-width="2.8" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- Wave 2 (middle) -->
+  <path d="M48 38 C53 32 58 42 64 36 C70 30 75 40 80 34"
+        fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Wave 3 (farthest, widest, most transparent) -->
+  <path d="M44 28 C50 20 56 34 64 26 C72 18 78 32 84 24"
+        fill="none" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+</svg>

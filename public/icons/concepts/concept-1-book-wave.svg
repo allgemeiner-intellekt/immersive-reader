@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Concept 1: Open book with sound waves rising from it -->
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F7CFF"/>
+      <stop offset="100%" stop-color="#3B5FCC"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#g1)"/>
+  <!-- Open book -->
+  <path d="M34 88 L64 78 L94 88 L94 52 L64 42 L34 52 Z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/>
+  <line x1="64" y1="42" x2="64" y2="78" stroke="white" stroke-width="3"/>
+  <!-- Sound waves above book -->
+  <path d="M54 38 Q54 30 64 30 Q74 30 74 38" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+  <path d="M46 32 Q46 20 64 20 Q82 20 82 32" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+</svg>

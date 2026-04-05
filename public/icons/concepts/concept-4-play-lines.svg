@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Concept 4: Play triangle with text lines integrated -->
+  <defs>
+    <linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00B894"/>
+      <stop offset="100%" stop-color="#00896E"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#g4)"/>
+  <!-- Play triangle -->
+  <polygon points="36,32 36,96 76,64" fill="white" opacity="0.95"/>
+  <!-- Text lines to the right -->
+  <line x1="82" y1="44" x2="100" y2="44" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+  <line x1="82" y1="56" x2="96" y2="56" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  <line x1="82" y1="68" x2="100" y2="68" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+  <line x1="82" y1="80" x2="92" y2="80" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+</svg>

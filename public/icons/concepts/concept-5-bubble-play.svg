@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Concept 5: Rounded speech bubble with a play button inside -->
+  <defs>
+    <linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FD9644"/>
+      <stop offset="100%" stop-color="#E17A2B"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#g5)"/>
+  <!-- Speech bubble -->
+  <rect x="24" y="24" width="80" height="60" rx="16" fill="white" opacity="0.95"/>
+  <!-- Bubble tail -->
+  <polygon points="40,84 52,84 38,100" fill="white" opacity="0.95"/>
+  <!-- Play triangle inside bubble -->
+  <polygon points="54,40 54,70 78,55" fill="#E17A2B"/>
+</svg>

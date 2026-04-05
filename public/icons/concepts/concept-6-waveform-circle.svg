@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Concept 6: Audio waveform bars inside a circle — minimal/modern -->
+  <defs>
+    <linearGradient id="g6" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D3436"/>
+      <stop offset="100%" stop-color="#1A1D1E"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#g6)"/>
+  <!-- Circle outline -->
+  <circle cx="64" cy="64" r="38" fill="none" stroke="white" stroke-width="3" opacity="0.3"/>
+  <!-- Waveform bars (centered vertically) -->
+  <line x1="40" y1="54" x2="40" y2="74" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="50" y1="44" x2="50" y2="84" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.85"/>
+  <line x1="60" y1="38" x2="60" y2="90" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="1"/>
+  <line x1="70" y1="46" x2="70" y2="82" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.85"/>
+  <line x1="80" y1="50" x2="80" y2="78" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="90" y1="56" x2="90" y2="72" stroke="white" stroke-width="4.5" stroke-linecap="round" opacity="0.55"/>
+</svg>

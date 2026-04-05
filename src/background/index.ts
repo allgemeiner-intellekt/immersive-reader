@@ -1,8 +1,9 @@
 import { ensureOffscreenDocument } from './offscreen-manager';
 import { routeMessage } from './message-router';
 import { playbackState } from './playback-state';
-import { cleanOldProgress, getActiveProvider } from '@shared/storage';
+import { cleanOldProgress, getActiveProvider, getSettings } from '@shared/storage';
 import { MSG, sendTabMessage } from '@shared/messages';
+import { updateIcon } from './icon-renderer';
 import {
   startPlayback,
   pausePlayback,
@@ -132,6 +133,16 @@ chrome.contextMenus.create({
 chrome.contextMenus.onClicked.addListener((info) => {
   if (info.menuItemId === 'ir-settings') {
     chrome.runtime.openOptionsPage();
+  }
+});
+
+// Set icon to match accent color on startup and when settings change
+getSettings().then((s) => updateIcon(s.themeColor)).catch(() => {});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes['ir-settings']) {
+    const themeColor = changes['ir-settings'].newValue?.themeColor ?? null;
+    updateIcon(themeColor);
   }
 });
 
