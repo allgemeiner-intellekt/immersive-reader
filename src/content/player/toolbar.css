@@ -452,10 +452,10 @@
 /* --- Expanded Panel --- */
 
 .ir-expanded-panel {
-  padding: 8px 16px 12px;
+  padding: 10px 14px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   border-top: 1px solid var(--ir-border);
   animation: ir-panel-in 0.2s ease-out;
 }
@@ -465,38 +465,26 @@
   to { opacity: 1; max-height: 300px; }
 }
 
-.ir-panel-row {
+/* Header: provider select + settings icon */
+
+.ir-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.ir-panel-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--ir-text-muted);
-}
-
-.ir-panel-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ir-text);
+  gap: 6px;
 }
 
 /* Provider Select */
 
 .ir-panel-select {
   flex: 1;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
   border: 1px solid var(--ir-border);
   background: var(--ir-btn-hover);
   color: var(--ir-text);
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   outline: none;
@@ -504,8 +492,13 @@
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: 24px;
+  background-position: right 10px center;
+  padding-right: 26px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ir-panel-select:hover {
+  background: var(--ir-btn-active);
 }
 
 .ir-panel-select:focus {
@@ -520,6 +513,20 @@
 :host(.light) .ir-panel-select option {
   background: #fff;
   color: #1a1a2e;
+}
+
+/* Settings icon button (inline) */
+
+.ir-panel-settings-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  opacity: 0.45;
+  border-radius: 8px;
+}
+
+.ir-panel-settings-icon:hover {
+  opacity: 0.85;
 }
 
 /* Speed Slider */
@@ -564,17 +571,12 @@
 
 .ir-panel-progress {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ir-panel-meta {
-  font-size: 11px;
-  color: var(--ir-text-muted);
+  align-items: center;
+  gap: 8px;
 }
 
 .ir-panel-progress-bar {
-  width: 100%;
+  flex: 1;
   height: 3px;
   background: var(--ir-progress-track);
   border-radius: 2px;
@@ -588,27 +590,10 @@
   transition: width 0.15s linear;
 }
 
-/* Settings Button */
-
-.ir-panel-settings-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 0;
-  border: none;
-  border-radius: 6px;
-  background: var(--ir-btn-hover);
+.ir-panel-meta {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
   color: var(--ir-text-muted);
-  font-size: 12px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.ir-panel-settings-btn:hover {
-  background: var(--ir-btn-active);
-  color: var(--ir-text);
+  white-space: nowrap;
+  flex-shrink: 0;
 }

@@ -84,10 +84,9 @@ export function ExpandedPanel() {
 
   return (
     <div className="ir-expanded-panel">
-      {/* Provider Selector */}
-      {providers.length > 0 && (
-        <div className="ir-panel-row">
-          <label className="ir-panel-label">Provider</label>
+      {/* Provider + Settings row */}
+      <div className="ir-panel-header">
+        {providers.length > 0 && (
           <select
             className="ir-panel-select"
             value={activeGroupKey}
@@ -98,8 +97,27 @@ export function ExpandedPanel() {
               <option key={o.key} value={o.key}>{o.label}</option>
             ))}
           </select>
-        </div>
-      )}
+        )}
+        <button
+          className="ir-btn ir-panel-settings-icon"
+          onClick={openSettings}
+          title="Settings"
+        >
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M10 13a3 3 0 100-6 3 3 0 000 6z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M16.5 10a6.5 6.5 0 01-.4 2.2l1.5 1.2-1.2 2-1.8-.6a6.5 6.5 0 01-1.9 1.1l-.3 1.9h-2.4l-.3-1.9a6.5 6.5 0 01-1.9-1.1l-1.8.6-1.2-2 1.5-1.2A6.5 6.5 0 013.5 10c0-.8.1-1.5.4-2.2L2.4 6.6l1.2-2 1.8.6A6.5 6.5 0 017.3 4.1L7.6 2.2H10l.3 1.9a6.5 6.5 0 011.9 1.1l1.8-.6 1.2 2-1.5 1.2c.3.7.4 1.4.4 2.2z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
 
       {/* Speed Slider */}
       <SpeedSlider
@@ -113,35 +131,17 @@ export function ExpandedPanel() {
       {/* Reading Progress */}
       {totalChunks > 0 && (
         <div className="ir-panel-progress">
-          <span className="ir-panel-meta">
-            Segment {currentChunkIndex + 1} / {totalChunks}
-          </span>
           <div className="ir-panel-progress-bar">
             <div
               className="ir-panel-progress-fill"
               style={{ width: `${overallProgress}%` }}
             />
           </div>
+          <span className="ir-panel-meta">
+            {currentChunkIndex + 1} of {totalChunks}
+          </span>
         </div>
       )}
-
-      {/* Settings Button */}
-      <button className="ir-panel-settings-btn" onClick={openSettings}>
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M10 13a3 3 0 100-6 3 3 0 000 6z"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <path
-            d="M16.5 10a6.5 6.5 0 01-.4 2.2l1.5 1.2-1.2 2-1.8-.6a6.5 6.5 0 01-1.9 1.1l-.3 1.9h-2.4l-.3-1.9a6.5 6.5 0 01-1.9-1.1l-1.8.6-1.2-2 1.5-1.2A6.5 6.5 0 013.5 10c0-.8.1-1.5.4-2.2L2.4 6.6l1.2-2 1.8.6A6.5 6.5 0 017.3 4.1L7.6 2.2H10l.3 1.9a6.5 6.5 0 011.9 1.1l1.8-.6 1.2 2-1.5 1.2c.3.7.4 1.4.4 2.2z"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-          />
-        </svg>
-        Settings
-      </button>
     </div>
   );
 }
