@@ -178,7 +178,7 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     case MSG.PLAYBACK_PROGRESS: {
       const progress =
         message.duration > 0 ? message.currentTime / message.duration : 0;
-      store._setChunkProgress(progress);
+      store._setChunkProgress(progress, message.currentTime);
       store._setCurrentChunk(message.chunkIndex);
       if (store.playbackStatus !== 'playing') {
         store._setPlaybackStatus('playing');
@@ -187,6 +187,7 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     }
 
     case MSG.CHUNK_COMPLETE: {
+      store._addChunkDuration(store.currentChunkTime);
       store._setCurrentChunk(message.chunkIndex + 1);
       store._setChunkProgress(0);
       // Clear highlights for completed chunk

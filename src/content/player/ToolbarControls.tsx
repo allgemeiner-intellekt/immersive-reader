@@ -1,4 +1,5 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { SPEED_PRESETS, PROVIDER_SPEED_RANGES, filterPresetsForRange, formatSpeed } from '@shared/constants';
 
 // --- SVG Icon Paths ---
 
@@ -89,19 +90,55 @@ export function SkipButton({ direction, onClick }: SkipButtonProps) {
   );
 }
 
-// --- SpeedChip ---
+// --- SpeedPopup ---
 
-interface SpeedChipProps {
+interface SpeedPopupProps {
   speed: number;
-  onClick: () => void;
+  onChangeSpeed: (speed: number) => void;
+  activeProviderId: string | null;
 }
 
-export function SpeedChip({ speed, onClick }: SpeedChipProps) {
-  const label = speed % 1 === 0 ? `${speed}x` : `${speed}x`;
+export function SpeedPopup({ speed, onChangeSpeed, activeProviderId }: SpeedPopupProps) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (wrapRef.current && !e.composedPath().includes(wrapRef.current)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick, true);
+    return () => document.removeEventListener('mousedown', handleClick, true);
+  }, [open]);
+
+  const range = activeProviderId ? PROVIDER_SPEED_RANGES[activeProviderId] ?? null : null;
+  const presets = range ? filterPresetsForRange(range.min, range.max) : SPEED_PRESETS;
+
   return (
-    <button className="ir-btn ir-speed-chip" onClick={onClick} title="Change speed">
-      {label}
-    </button>
+    <div className="ir-speed-wrap" ref={wrapRef}>
+      <button
+        className="ir-btn ir-speed-chip"
+        onClick={() => setOpen(!open)}
+        title="Change speed"
+      >
+        {formatSpeed(speed)}
+      </button>
+      {open && (
+        <div className="ir-speed-popup">
+          {presets.map((s) => (
+            <button
+              key={s}
+              className={`ir-speed-popup-item${s === speed ? ' ir-speed-popup-item--active' : ''}`}
+              onClick={() => { onChangeSpeed(s); setOpen(false); }}
+            >
+              {formatSpeed(s)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

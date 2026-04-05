@@ -8,7 +8,7 @@ import { SpeedSlider } from '@shared/SpeedSlider';
 export function ExpandedPanel() {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [activeGroupKey, setActiveGroupKey] = useState<string>('');
-  const { speed, setSpeed, _setProviderId, currentChunkIndex, totalChunks, chunkProgress } = useToolbarStore();
+  const { speed, setSpeed, _setProviderId, currentChunkIndex, totalChunks, chunkProgress, elapsedTime, currentChunkTime } = useToolbarStore();
 
   useEffect(() => {
     (async () => {
@@ -82,6 +82,13 @@ export function ExpandedPanel() {
   const overallProgress =
     totalChunks > 0 ? ((currentChunkIndex + chunkProgress) / totalChunks) * 100 : 0;
 
+  const totalSeconds = Math.floor(elapsedTime + currentChunkTime);
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+
   return (
     <div className="ir-expanded-panel">
       {/* Provider + Settings row */}
@@ -103,18 +110,10 @@ export function ExpandedPanel() {
           onClick={openSettings}
           title="Settings"
         >
-          <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
-            <path
-              d="M10 13a3 3 0 100-6 3 3 0 000 6z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
-            <path
-              d="M16.5 10a6.5 6.5 0 01-.4 2.2l1.5 1.2-1.2 2-1.8-.6a6.5 6.5 0 01-1.9 1.1l-.3 1.9h-2.4l-.3-1.9a6.5 6.5 0 01-1.9-1.1l-1.8.6-1.2-2 1.5-1.2A6.5 6.5 0 013.5 10c0-.8.1-1.5.4-2.2L2.4 6.6l1.2-2 1.8.6A6.5 6.5 0 017.3 4.1L7.6 2.2H10l.3 1.9a6.5 6.5 0 011.9 1.1l1.8-.6 1.2 2-1.5 1.2c.3.7.4 1.4.4 2.2z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+            <circle cx="10" cy="4" r="1.75" />
+            <circle cx="10" cy="10" r="1.75" />
+            <circle cx="10" cy="16" r="1.75" />
           </svg>
         </button>
       </div>
@@ -138,7 +137,7 @@ export function ExpandedPanel() {
             />
           </div>
           <span className="ir-panel-meta">
-            {currentChunkIndex + 1} of {totalChunks}
+            {formatTime(totalSeconds)}
           </span>
         </div>
       )}

@@ -3,7 +3,7 @@ import { useToolbarStore } from '../state/store';
 import {
   PlayPauseWithProgress,
   SkipButton,
-  SpeedChip,
+  SpeedPopup,
   VolumeSlider,
   CloseButton,
   ExpandButton,
@@ -23,13 +23,14 @@ export function FloatingToolbar() {
     toolbarVisible,
     expanded,
     toastMessage,
+    activeProviderId,
     play,
     pause,
     resume,
     stop,
     skipForward,
     skipBackward,
-    cycleSpeed,
+    setSpeed,
     setVolume,
     hideToolbar,
     toggleExpanded,
@@ -100,7 +101,7 @@ export function FloatingToolbar() {
         />
         <SkipButton direction="forward" onClick={skipForward} />
         <VolumeSlider volume={volume} onChange={setVolume} />
-        <SpeedChip speed={speed} onClick={cycleSpeed} />
+        <SpeedPopup speed={speed} onChangeSpeed={setSpeed} activeProviderId={activeProviderId} />
         <ExpandButton expanded={expanded} onClick={toggleExpanded} />
         <CloseButton onClick={handleClose} />
       </div>

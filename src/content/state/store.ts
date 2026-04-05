@@ -9,6 +9,8 @@ export interface ToolbarState {
   currentChunkIndex: number;
   totalChunks: number;
   chunkProgress: number;
+  elapsedTime: number;       // accumulated seconds from completed chunks
+  currentChunkTime: number;  // current chunk's currentTime in seconds
   speed: number;
   volume: number;
 
@@ -41,8 +43,9 @@ export interface ToolbarState {
 
   // State updates (called from message listeners)
   _setPlaybackStatus: (status: PlaybackStatus) => void;
-  _setChunkProgress: (progress: number) => void;
+  _setChunkProgress: (progress: number, currentTime?: number) => void;
   _setCurrentChunk: (index: number, total?: number) => void;
+  _addChunkDuration: (duration: number) => void;
   _setTotalChunks: (total: number) => void;
   _setProviderId: (id: string | null) => void;
   _setProviderName: (name: string) => void;
@@ -54,6 +57,8 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
   currentChunkIndex: 0,
   totalChunks: 0,
   chunkProgress: 0,
+  elapsedTime: 0,
+  currentChunkTime: 0,
   speed: 1.0,
   volume: 1.0,
   toolbarVisible: false,
@@ -83,6 +88,8 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
       playbackStatus: 'idle',
       currentChunkIndex: 0,
       chunkProgress: 0,
+      elapsedTime: 0,
+      currentChunkTime: 0,
       toolbarVisible: false,
       expanded: false,
     });
@@ -140,7 +147,10 @@ export const useToolbarStore = create<ToolbarState>((set, get) => ({
   },
 
   _setPlaybackStatus: (status) => set({ playbackStatus: status }),
-  _setChunkProgress: (progress) => set({ chunkProgress: progress }),
+  _setChunkProgress: (progress, currentTime) =>
+    set((s) => ({ chunkProgress: progress, currentChunkTime: currentTime ?? s.currentChunkTime })),
+  _addChunkDuration: (duration) =>
+    set((s) => ({ elapsedTime: s.elapsedTime + duration, currentChunkTime: 0 })),
   _setCurrentChunk: (index, total) =>
     set((s) => ({ currentChunkIndex: index, totalChunks: total ?? s.totalChunks })),
   _setTotalChunks: (total) => set({ totalChunks: total }),
