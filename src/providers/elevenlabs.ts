@@ -18,6 +18,59 @@ function getNormalizedApiKey(config: ProviderConfig): string {
   return config.apiKey.trim();
 }
 
+/**
+ * Convert an ElevenLabs error response into an ApiError with the correct
+ * retryable flag.
+ *
+ * ElevenLabs returns HTTP 401 for BOTH invalid keys and quota-exhausted
+ * accounts (detail.status = 'quota_exceeded'). We must treat quota errors as
+ * retryable so the orchestrator's failover can switch to a backup config;
+ * otherwise the read stops dead even when another key is available.
+ */
+function toElevenLabsApiError(status: number, body: string, headers?: Headers): ApiError {
+  const detail = getElevenLabsErrorMessage(body);
+  const lower = detail.toLowerCase();
+
+  const isQuotaExceeded =
+    lower.includes('quota_exceeded') ||
+    lower.includes('quota exceeded') ||
+    lower.includes('usage_limit') ||
+    lower.includes('usage limit') ||
+    lower.includes('character limit') ||
+    lower.includes('exceeds your remaining');
+
+  if (isQuotaExceeded) {
+    // Use 403 so failover.getCooldownDuration applies the longer quota cooldown.
+    return new ApiError(
+      detail || 'ElevenLabs quota exceeded.',
+      403,
+      'elevenlabs',
+      true,
+    );
+  }
+
+  if (status === 401) {
+    // Genuine bad key — permanent failure.
+    return new ApiError(
+      detail || 'ElevenLabs rejected the API request with a 401 error.',
+      401,
+      'elevenlabs',
+      false,
+    );
+  }
+
+  if (status === 429) {
+    return new ApiError(
+      detail || 'Rate limit exceeded. Please try again later.',
+      429,
+      'elevenlabs',
+      true,
+    );
+  }
+
+  return ApiError.fromResponse(status, detail || `HTTP ${status}`, 'elevenlabs', headers);
+}
+
 function getElevenLabsErrorMessage(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -105,11 +158,18 @@ export const elevenlabsProvider: TTSProvider = {
       };
     }
 
-    // Try /with-timestamps endpoint first for word-level timing data
+    // Try /with-timestamps endpoint first for word-level timing data.
+    // If the plan doesn't support timestamps we get a 400 and fall back to
+    // /stream. But authoritative errors (401 bad key, 403/429 quota, 5xx)
+    // must propagate immediately — otherwise we waste a second request and,
+    // worse, the fallback re-throws the same error, obscuring the cause.
     try {
       return await synthesizeWithTimestamps(baseUrl, apiKey, voice.id, body, text);
-    } catch {
-      // Fall back to /stream endpoint without timestamps
+    } catch (err) {
+      if (err instanceof ApiError && err.status !== 400) {
+        throw err;
+      }
+      // Fall through to /stream for 400s and non-ApiError failures.
     }
 
     let response: Response;
@@ -130,14 +190,7 @@ export const elevenlabsProvider: TTSProvider = {
 
     if (!response.ok) {
       const errBody = await response.text().catch(() => '');
-      const detail = getElevenLabsErrorMessage(errBody);
-      if (response.status === 401) {
-        throw new ApiError(detail || 'ElevenLabs rejected the API request with a 401 error.', 401, 'elevenlabs', false);
-      }
-      if (response.status === 429) {
-        throw new ApiError('Rate limit exceeded. Please try again later.', 429, 'elevenlabs', true);
-      }
-      throw ApiError.fromResponse(response.status, detail || response.statusText, 'elevenlabs', response.headers);
+      throw toElevenLabsApiError(response.status, errBody, response.headers);
     }
 
     const audioData = await response.arrayBuffer();
@@ -178,18 +231,24 @@ async function synthesizeWithTimestamps(
   body: Record<string, unknown>,
   originalText: string,
 ): Promise<SynthesisResult> {
-  const response = await fetch(`${baseUrl}/v1/text-to-speech/${voiceId}/with-timestamps`, {
-    signal: AbortSignal.timeout(30_000),
-    method: 'POST',
-    headers: {
-      'xi-api-key': apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/v1/text-to-speech/${voiceId}/with-timestamps`, {
+      signal: AbortSignal.timeout(30_000),
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    throw ApiError.fromNetworkError(err, 'elevenlabs');
+  }
 
   if (!response.ok) {
-    throw new Error(`with-timestamps endpoint failed: ${response.status}`);
+    const errBody = await response.text().catch(() => '');
+    throw toElevenLabsApiError(response.status, errBody, response.headers);
   }
 
   const data = (await response.json()) as {

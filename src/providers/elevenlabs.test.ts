@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { elevenlabsProvider } from './elevenlabs';
+import { ApiError } from '@shared/api-error';
 import type { ProviderConfig, Voice } from '@shared/types';
 
 const TEST_CONFIG: ProviderConfig = {
@@ -78,5 +79,63 @@ describe('elevenlabsProvider', () => {
     await expect(
       elevenlabsProvider.synthesize('hello', TEST_VOICE, TEST_CONFIG),
     ).rejects.toThrow('invalid_api_key: A valid API key is required.');
+  });
+
+  it('marks quota_exceeded 401 responses as retryable so failover can kick in', async () => {
+    // Both endpoints return the same quota_exceeded 401 payload.
+    const quotaBody = JSON.stringify({
+      detail: {
+        status: 'quota_exceeded',
+        message: 'You have 0 credits remaining, while 42 credits are required.',
+      },
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: async () => quotaBody,
+        headers: new Headers(),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: async () => quotaBody,
+        headers: new Headers(),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    let caught: unknown;
+    try {
+      await elevenlabsProvider.synthesize('hello', TEST_VOICE, TEST_CONFIG);
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const apiErr = caught as ApiError;
+    expect(apiErr.retryable).toBe(true);
+    // Quota errors are mapped to 403 so failover applies the long cooldown.
+    expect(apiErr.status).toBe(403);
+    expect(apiErr.message).toContain('quota_exceeded');
+  });
+
+  it('propagates with-timestamps auth errors immediately instead of hitting /stream', async () => {
+    // Only one fetch call should occur — the timestamps endpoint returns 401
+    // and we must NOT mask it by falling back to /stream.
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: async () =>
+        JSON.stringify({
+          detail: { status: 'invalid_api_key', message: 'Bad key' },
+        }),
+      headers: new Headers(),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      elevenlabsProvider.synthesize('hello', TEST_VOICE, TEST_CONFIG),
+    ).rejects.toThrow('invalid_api_key: Bad key');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
