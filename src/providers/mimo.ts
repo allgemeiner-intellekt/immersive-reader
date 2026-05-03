@@ -1,6 +1,7 @@
 import type { TTSProvider, ProviderConfig, Voice, SynthesisResult, SynthesisOptions } from '@shared/types';
 import { hasLikelyValidApiKeyFormat } from './api-key-format';
 import { ApiError } from '@shared/api-error';
+import { withTimeoutSignal } from '@shared/abort';
 
 const DEFAULT_BASE_URL = 'https://api.xiaomimimo.com/v1';
 const DEFAULT_MODEL = 'mimo-v2-tts';
@@ -70,7 +71,7 @@ export const mimoProvider: TTSProvider = {
     text: string,
     voice: Voice,
     config: ProviderConfig,
-    _options?: SynthesisOptions,
+    options?: SynthesisOptions,
   ): Promise<SynthesisResult> {
     const baseUrl = config.baseUrl || DEFAULT_BASE_URL;
     const body = buildRequestBody(text, voice.id, resolveModel(config));
@@ -78,7 +79,7 @@ export const mimoProvider: TTSProvider = {
     let response: Response;
     try {
       response = await fetch(`${baseUrl}/chat/completions`, {
-        signal: AbortSignal.timeout(30_000),
+        signal: withTimeoutSignal(options?.signal, 30_000),
         method: 'POST',
         headers: buildHeaders(config.apiKey),
         body: JSON.stringify(body),

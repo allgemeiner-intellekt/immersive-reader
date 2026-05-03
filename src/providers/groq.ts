@@ -2,6 +2,7 @@ import type { TTSProvider, ProviderConfig, Voice, SynthesisResult, SynthesisOpti
 import { buildOpenAICompatibleUrl, validateOpenAICompatibleSpeech } from './openai-compatible';
 import { hasLikelyValidApiKeyFormat } from './api-key-format';
 import { ApiError } from '@shared/api-error';
+import { withTimeoutSignal } from '@shared/abort';
 
 const DEFAULT_BASE_URL = 'https://api.groq.com/openai';
 
@@ -55,7 +56,7 @@ export const groqProvider: TTSProvider = {
     let response: Response;
     try {
       response = await fetch(buildOpenAICompatibleUrl(baseUrl, '/audio/speech'), {
-        signal: AbortSignal.timeout(30_000),
+        signal: withTimeoutSignal(options?.signal, 30_000),
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,

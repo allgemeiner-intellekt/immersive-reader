@@ -1,6 +1,7 @@
 import type { TTSProvider, ProviderConfig, Voice, SynthesisResult, SynthesisOptions, ProviderUsage, WordTiming } from '@shared/types';
 import { hasLikelyValidApiKeyFormat } from './api-key-format';
 import { ApiError } from '@shared/api-error';
+import { withTimeoutSignal } from '@shared/abort';
 
 const DEFAULT_BASE_URL = 'https://api.elevenlabs.io';
 const DEFAULT_MODEL_ID = 'eleven_multilingual_v2';
@@ -164,7 +165,7 @@ export const elevenlabsProvider: TTSProvider = {
     // must propagate immediately — otherwise we waste a second request and,
     // worse, the fallback re-throws the same error, obscuring the cause.
     try {
-      return await synthesizeWithTimestamps(baseUrl, apiKey, voice.id, body, text);
+      return await synthesizeWithTimestamps(baseUrl, apiKey, voice.id, body, text, options?.signal);
     } catch (err) {
       if (err instanceof ApiError && err.status !== 400) {
         throw err;
@@ -175,7 +176,7 @@ export const elevenlabsProvider: TTSProvider = {
     let response: Response;
     try {
       response = await fetch(`${baseUrl}/v1/text-to-speech/${voice.id}/stream`, {
-        signal: AbortSignal.timeout(30_000),
+        signal: withTimeoutSignal(options?.signal, 30_000),
         method: 'POST',
         headers: {
           'xi-api-key': apiKey,
@@ -230,11 +231,12 @@ async function synthesizeWithTimestamps(
   voiceId: string,
   body: Record<string, unknown>,
   originalText: string,
+  signal?: AbortSignal,
 ): Promise<SynthesisResult> {
   let response: Response;
   try {
     response = await fetch(`${baseUrl}/v1/text-to-speech/${voiceId}/with-timestamps`, {
-      signal: AbortSignal.timeout(30_000),
+      signal: withTimeoutSignal(signal, 30_000),
       method: 'POST',
       headers: {
         'xi-api-key': apiKey,

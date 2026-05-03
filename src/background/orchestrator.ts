@@ -9,6 +9,8 @@ import { startWordTimingRelay, stopWordTimingRelay, onPlaybackProgress } from '.
 import { LOOKAHEAD_BUFFER_SIZE, PROVIDER_SPEED_RANGES } from '@shared/constants';
 import { ApiError } from '@shared/api-error';
 import { getCachedVoices, setCachedVoices } from '@providers/voice-cache';
+import { PlaybackLatencyTracker } from './latency-metrics';
+import { evictAudioCache } from './playback-cache';
 import {
   markFailed,
   getNextCandidate,
@@ -26,8 +28,16 @@ interface SynthesizedChunk {
 let activeTabId: number | null = null;
 let currentPageUrl: string | undefined;
 const prefetchCache = new Map<number, SynthesizedChunk>();
-const MAX_CACHE_SIZE = 8;
+const inFlightSyntheses = new Map<number, {
+  generation: number;
+  promise: Promise<SynthesizedChunk>;
+  allowFailover: boolean;
+}>();
+const MAX_CACHE_SIZE = 6;
+const MAX_CACHE_BASE64_CHARS = 24 * 1024 * 1024;
 let abortController: AbortController | null = null;
+let offscreenPrimedChunkIndex: number | null = null;
+const latencyTracker = new PlaybackLatencyTracker();
 
 // Session binding — locks provider + voice for the duration of a playback session
 let currentSession: PlaybackSession | null = null;
@@ -57,20 +67,11 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-// Evict cache entries furthest from current playback position
-function evictCache(currentIndex: number): void {
-  if (prefetchCache.size <= MAX_CACHE_SIZE) return;
-  const entries = [...prefetchCache.keys()].sort(
-    (a, b) => Math.abs(b - currentIndex) - Math.abs(a - currentIndex),
-  );
-  while (prefetchCache.size > MAX_CACHE_SIZE && entries.length > 0) {
-    prefetchCache.delete(entries.shift()!);
-  }
-}
-
 // Send a message to the offscreen document (uses OFFSCREEN_ prefix to avoid routing loops)
-async function sendToOffscreen(message: Record<string, unknown>): Promise<void> {
-  await ensureOffscreenDocument();
+async function sendToOffscreen(message: Record<string, unknown>, ensureDocument = true): Promise<void> {
+  if (ensureDocument) {
+    await ensureOffscreenDocument();
+  }
   chrome.runtime.sendMessage(message).catch(console.error);
 }
 
@@ -132,6 +133,7 @@ export async function startPlayback(tabId: number, fromSelection = false): Promi
   stopPlayback();
   activeTabId = tabId;
   abortController = new AbortController();
+  latencyTracker.mark('first-start', null);
 
   playbackState.setStatus('loading');
 
@@ -208,6 +210,7 @@ export async function startPlayback(tabId: number, fromSelection = false): Promi
   });
 
   // Step 2: Start the playback loop
+  await ensureOffscreenDocument();
   await playChunksSequentially(tabId, startIndex, extractResult.totalChunks, currentPageUrl);
 }
 
@@ -230,6 +233,9 @@ export function stopPlayback(): void {
   abortController?.abort();
   abortController = null;
   prefetchCache.clear();
+  inFlightSyntheses.clear();
+  offscreenPrimedChunkIndex = null;
+  latencyTracker.cancel();
   // Clear saved progress on explicit stop — user is done with this article
   if (currentPageUrl) {
     clearProgress(currentPageUrl).catch(() => {});
@@ -265,13 +271,18 @@ export async function skipToChunk(chunkIndex: number): Promise<void> {
   const state = playbackState.getState();
   if (state.status === 'idle') return;
 
+  latencyTracker.mark('seek-to-audio', chunkIndex);
   stopWordTimingRelay();
   await sendToOffscreen({ type: MSG.OFFSCREEN_STOP });
 
   abortController?.abort();
   abortController = new AbortController();
+  inFlightSyntheses.clear();
+  offscreenPrimedChunkIndex = null;
+  evictAudioCache(prefetchCache, chunkIndex, MAX_CACHE_SIZE, MAX_CACHE_BASE64_CHARS);
 
   playbackState.update({ currentChunkIndex: chunkIndex, status: 'loading' });
+  await ensureOffscreenDocument();
   await playChunksSequentially(activeTabId, chunkIndex, state.totalChunks);
 }
 
@@ -311,7 +322,7 @@ async function playChunksSequentially(
       synthesized = cached;
     } else {
       try {
-        synthesized = await synthesizeChunkWithFailover(tabId, i);
+        synthesized = await getOrStartSynthesis(tabId, i, signal, true);
       } catch (err) {
         if (signal?.aborted) return;
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -335,41 +346,29 @@ async function playChunksSequentially(
       prefetchCache.set(i, synthesized);
     }
 
-    // Start prefetching next chunks (tagged with generation to discard stale results)
-    const gen = sessionGeneration;
-    for (let j = 1; j <= LOOKAHEAD_BUFFER_SIZE; j++) {
-      const prefetchIndex = i + j;
-      if (prefetchIndex < totalChunks && !prefetchCache.has(prefetchIndex)) {
-        synthesizeChunk(tabId, prefetchIndex)
-          .then((result) => {
-            // Discard if session has changed (failover occurred)
-            if (!signal?.aborted && sessionGeneration === gen) {
-              prefetchCache.set(prefetchIndex, result);
-            }
-          })
-          .catch(() => {});
-      }
-    }
-
     // Evict cache entries furthest from current position
-    evictCache(i);
+    evictAudioCache(prefetchCache, i, MAX_CACHE_SIZE, MAX_CACHE_BASE64_CHARS);
 
-    // Send audio to offscreen as base64 (ArrayBuffer can't be serialized in Chrome messages)
-    // Use OFFSCREEN_SCHEDULE_NEXT for gapless playback after the first chunk
+    // Send audio to offscreen as base64 (ArrayBuffer can't be serialized in Chrome messages).
     playbackState.setStatus('playing');
     currentChunkSynthesizedSpeed = synthesized.synthesizedSpeed;
     const currentSpeed = playbackState.getState().speed;
     const residual = currentChunkSynthesizedSpeed !== 0
       ? currentSpeed / currentChunkSynthesizedSpeed
       : currentSpeed;
-    await sendToOffscreen({ type: MSG.OFFSCREEN_SET_SPEED, speed: residual });
-    const offscreenMsg = i === startIndex ? MSG.OFFSCREEN_PLAY : MSG.OFFSCREEN_SCHEDULE_NEXT;
-    await sendToOffscreen({
-      type: offscreenMsg,
-      audioBase64: synthesized.audioBase64,
-      chunkIndex: i,
-      format: synthesized.format,
-    });
+    await sendToOffscreen({ type: MSG.OFFSCREEN_SET_SPEED, speed: residual }, false);
+    if (offscreenPrimedChunkIndex === i) {
+      offscreenPrimedChunkIndex = null;
+    } else {
+      await sendToOffscreen({
+        type: MSG.OFFSCREEN_PLAY,
+        audioBase64: synthesized.audioBase64,
+        chunkIndex: i,
+        format: synthesized.format,
+      }, false);
+    }
+
+    startLookahead(tabId, i, totalChunks, signal);
 
     // Start word timing relay for this chunk
     let chunkResult: TextChunk | null = null;
@@ -404,10 +403,101 @@ async function playChunksSequentially(
 }
 
 /**
- * Synthesize a chunk using the session-locked config.
- * Does NOT handle failover — used directly and by the failover wrapper.
+ * Return cached/in-flight synthesis when available, otherwise start bounded shared work.
  */
-async function synthesizeChunk(tabId: number, chunkIndex: number): Promise<SynthesizedChunk> {
+function getOrStartSynthesis(
+  tabId: number,
+  chunkIndex: number,
+  signal: AbortSignal | undefined,
+  allowFailover: boolean,
+): Promise<SynthesizedChunk> {
+  const cached = prefetchCache.get(chunkIndex);
+  if (cached) return Promise.resolve(cached);
+
+  const generation = sessionGeneration;
+  const existing = inFlightSyntheses.get(chunkIndex);
+  if (existing && existing.generation === generation) {
+    if (allowFailover && !existing.allowFailover) {
+      const promise = existing.promise.catch((err) => {
+        if (signal?.aborted) throw err;
+        return synthesizeChunkWithFailover(tabId, chunkIndex, signal);
+      }).finally(() => {
+        const current = inFlightSyntheses.get(chunkIndex);
+        if (current?.promise === promise) {
+          inFlightSyntheses.delete(chunkIndex);
+        }
+      });
+
+      inFlightSyntheses.set(chunkIndex, { generation, promise, allowFailover });
+      return promise;
+    }
+
+    return existing.promise;
+  }
+
+  const promise = (allowFailover
+    ? synthesizeChunkWithFailover(tabId, chunkIndex, signal)
+    : synthesizeChunk(tabId, chunkIndex, signal)
+  ).finally(() => {
+    const current = inFlightSyntheses.get(chunkIndex);
+    if (current?.promise === promise) {
+      inFlightSyntheses.delete(chunkIndex);
+    }
+  });
+
+  inFlightSyntheses.set(chunkIndex, { generation, promise, allowFailover });
+  return promise;
+}
+
+function startLookahead(
+  tabId: number,
+  currentIndex: number,
+  totalChunks: number,
+  signal: AbortSignal | undefined,
+): void {
+  const generation = sessionGeneration;
+
+  for (let j = 1; j <= LOOKAHEAD_BUFFER_SIZE; j++) {
+    const prefetchIndex = currentIndex + j;
+    if (prefetchIndex >= totalChunks || prefetchCache.has(prefetchIndex)) continue;
+
+    getOrStartSynthesis(tabId, prefetchIndex, signal, false)
+      .then(async (result) => {
+        if (signal?.aborted || sessionGeneration !== generation) return;
+
+        prefetchCache.set(prefetchIndex, result);
+        evictAudioCache(prefetchCache, currentIndex, MAX_CACHE_SIZE, MAX_CACHE_BASE64_CHARS);
+
+        const state = playbackState.getState();
+        const canScheduleNext =
+          j === 1 &&
+          state.status === 'playing' &&
+          state.currentChunkIndex === currentIndex &&
+          offscreenPrimedChunkIndex !== prefetchIndex &&
+          result.synthesizedSpeed === currentChunkSynthesizedSpeed;
+
+        if (!canScheduleNext) return;
+
+        await sendToOffscreen({
+          type: MSG.OFFSCREEN_SCHEDULE_NEXT,
+          audioBase64: result.audioBase64,
+          chunkIndex: prefetchIndex,
+          format: result.format,
+        }, false);
+
+        if (!signal?.aborted && sessionGeneration === generation) {
+          offscreenPrimedChunkIndex = prefetchIndex;
+        }
+      })
+      .catch(() => {});
+  }
+}
+
+async function synthesizeChunk(
+  tabId: number,
+  chunkIndex: number,
+  signal?: AbortSignal,
+): Promise<SynthesizedChunk> {
   const session = currentSession;
   if (!session) {
     throw new Error('No active playback session.');
@@ -421,6 +511,9 @@ async function synthesizeChunk(tabId: number, chunkIndex: number): Promise<Synth
 
   if (!chunk || chunk.error || !('text' in chunk)) {
     throw new Error(`Failed to get chunk ${chunkIndex}`);
+  }
+  if (signal?.aborted) {
+    throw new DOMException('Playback synthesis aborted.', 'AbortError');
   }
 
   const provider = getProvider(session.config.providerId);
@@ -436,6 +529,7 @@ async function synthesizeChunk(tabId: number, chunkIndex: number): Promise<Synth
 
   const result = await provider.synthesize(chunk.text, session.voice, session.config, {
     speed: serverSpeed,
+    signal,
   });
 
   return {
@@ -453,13 +547,21 @@ async function synthesizeChunk(tabId: number, chunkIndex: number): Promise<Synth
 async function synthesizeChunkWithFailover(
   tabId: number,
   chunkIndex: number,
+  signal?: AbortSignal,
 ): Promise<SynthesizedChunk> {
   let attempts = 0;
 
   while (attempts < MAX_FAILOVER_ATTEMPTS) {
+    if (signal?.aborted) {
+      throw new DOMException('Playback synthesis aborted.', 'AbortError');
+    }
+
     try {
-      return await synthesizeChunk(tabId, chunkIndex);
+      return await synthesizeChunk(tabId, chunkIndex, signal);
     } catch (err) {
+      if (signal?.aborted) {
+        throw err;
+      }
       attempts++;
 
       // Non-ApiError or non-retryable → stop immediately
@@ -497,6 +599,8 @@ async function synthesizeChunkWithFailover(
         generation: ++sessionGeneration,
       };
       prefetchCache.clear();
+      inFlightSyntheses.clear();
+      offscreenPrimedChunkIndex = null;
 
       // Notify content script of failover
       if (activeTabId) {
@@ -556,6 +660,11 @@ export function handlePlaybackProgress(
   duration: number,
   chunkIndex: number,
 ): void {
+  const latencyEvent = latencyTracker.completeOnAudioProgress(chunkIndex);
+  if (latencyEvent) {
+    console.info('Recito playback latency', latencyEvent);
+  }
+
   if (playbackState.getState().currentChunkIndex === chunkIndex) {
     playbackState.update({
       currentTime,

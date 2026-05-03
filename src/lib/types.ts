@@ -39,6 +39,7 @@ export interface TTSProvider {
 export interface SynthesisOptions {
   speed?: number;
   format?: string;
+  signal?: AbortSignal;
 }
 
 // === Content Extraction Types ===

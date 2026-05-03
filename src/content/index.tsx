@@ -2,6 +2,12 @@ import { MSG, type ExtensionMessage } from '@shared/messages';
 import type { TextChunk } from '@shared/types';
 import { extractContent } from './extraction/extractor';
 import { getSelectedText } from './extraction/selection';
+import {
+  canReuseExtraction,
+  createExtractionCacheEntry,
+  createExtractionCacheKey,
+  type ExtractionCacheEntry,
+} from './extraction/session-cache';
 import { chunkText } from '@shared/chunker';
 import { mountToolbar } from './mount';
 import { useToolbarStore } from './state/store';
@@ -47,6 +53,7 @@ setupNativeMediaDetection();
 // Module-level storage for extracted chunks
 let currentChunks: TextChunk[] = [];
 let currentTitle = '';
+let currentExtraction: ExtractionCacheEntry | null = null;
 
 // Highlight manager instance
 let highlightManager: HighlightManager | null = null;
@@ -104,12 +111,41 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     case MSG.EXTRACT_CONTENT: {
       // Check for text selection first
       const selection = getSelectedText();
+      const fromSelection = Boolean(selection && message.fromSelection !== false);
+      const extractionKey = createExtractionCacheKey({
+        url: window.location.href,
+        fromSelection,
+        selectionText: selection?.text ?? null,
+        chunkConfig: message.chunkConfig,
+      });
+
+      if (
+        canReuseExtraction(currentExtraction, extractionKey) &&
+        currentChunks.length === currentExtraction?.totalChunks
+      ) {
+        store._setTotalChunks(currentChunks.length);
+        store.showToolbar();
+
+        if (!highlightManager) {
+          await initializePlaybackAnnotations(
+            (currentExtraction.sourceElement as Element | null) ?? document.body,
+          );
+        }
+
+        return {
+          title: currentExtraction.title,
+          wordCount: currentExtraction.wordCount,
+          totalChunks: currentExtraction.totalChunks,
+          reused: true,
+        };
+      }
+
       let textContent: string;
       let title: string;
       let wordCount: number;
       let sourceEl: Element | null = null;
 
-      if (selection && message.fromSelection !== false) {
+      if (fromSelection && selection) {
         textContent = selection.text;
         title = document.title;
         wordCount = textContent.split(/\s+/).filter(Boolean).length;
@@ -126,34 +162,26 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
 
       currentChunks = chunkText(textContent, message.chunkConfig);
       currentTitle = title;
+      currentExtraction = createExtractionCacheEntry({
+        key: extractionKey,
+        title,
+        wordCount,
+        totalChunks: currentChunks.length,
+        sourceElement: sourceEl,
+      });
 
       store._setTotalChunks(currentChunks.length);
       store.showToolbar();
 
-      // Initialize highlighting
-      const settings = await getSettings();
-      const resolvedHighlight = resolveHighlightSettings(settings.highlight, settings.themeColor);
-      highlightManager?.destroy();
-      highlightManager = new HighlightManager(resolvedHighlight);
-      // Always init highlighting — fallback to document.body if no source element
-      highlightManager.init(sourceEl ?? document.body);
+      await initializePlaybackAnnotations(sourceEl ?? document.body);
 
       // Recompute chunk offsets against the DOM text map so highlighting
       // aligns with actual text node positions (Readability's textContent
       // may differ from the live DOM, causing partial-word highlights).
-      const domText = highlightManager.getFullText();
+      const domText = highlightManager?.getFullText() ?? '';
       if (domText) {
         recomputeChunkOffsets(currentChunks, domText);
       }
-
-      if (settings.highlight.autoScroll) {
-        initAutoScroll();
-      }
-
-      // Enable interactive text scrubbing (hover + click to seek)
-      initTextScrubber(highlightManager, currentChunks, (chunkIndex) => {
-        useToolbarStore.getState().seekToChunk(chunkIndex);
-      });
 
       return {
         title,
@@ -277,6 +305,24 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
       return { ok: true };
     }
   }
+}
+
+async function initializePlaybackAnnotations(sourceEl: Element): Promise<void> {
+  const settings = await getSettings();
+  const resolvedHighlight = resolveHighlightSettings(settings.highlight, settings.themeColor);
+  destroyTextScrubber();
+  destroyAutoScroll();
+  highlightManager?.destroy();
+  highlightManager = new HighlightManager(resolvedHighlight);
+  highlightManager.init(sourceEl);
+
+  if (settings.highlight.autoScroll) {
+    initAutoScroll();
+  }
+
+  initTextScrubber(highlightManager, currentChunks, (chunkIndex) => {
+    useToolbarStore.getState().seekToChunk(chunkIndex);
+  });
 }
 
 /**

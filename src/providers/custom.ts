@@ -1,6 +1,7 @@
 import type { TTSProvider, ProviderConfig, Voice, SynthesisResult, SynthesisOptions } from '@shared/types';
 import { buildOpenAICompatibleUrl, validateOpenAICompatibleSpeech } from './openai-compatible';
 import { ApiError } from '@shared/api-error';
+import { withTimeoutSignal } from '@shared/abort';
 
 export const customProvider: TTSProvider = {
   id: 'custom',
@@ -39,7 +40,7 @@ export const customProvider: TTSProvider = {
     let response: Response;
     try {
       response = await fetch(buildOpenAICompatibleUrl(config.baseUrl, '/audio/speech'), {
-        signal: AbortSignal.timeout(30_000),
+        signal: withTimeoutSignal(options?.signal, 30_000),
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,
