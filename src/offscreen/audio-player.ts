@@ -181,7 +181,9 @@ export class AudioPlayer {
     };
 
     this.sourceNode.start(0, this.pauseOffset);
-    this.startTime = this.ctx.currentTime - this.pauseOffset;
+    this.startTime = this.playbackRate > 0
+      ? this.ctx.currentTime - (this.pauseOffset / this.playbackRate)
+      : this.ctx.currentTime;
     this.isPlaying = true;
     this.startProgressReporting();
   }
@@ -246,6 +248,10 @@ export class AudioPlayer {
   }
 
   setSpeed(rate: number): void {
+    if (this.isPlaying && this.ctx && this.playbackRate > 0 && rate > 0) {
+      const currentTimeInAudio = (this.ctx.currentTime - this.startTime) * this.playbackRate;
+      this.startTime = this.ctx.currentTime - (currentTimeInAudio / rate);
+    }
     this.playbackRate = rate;
     if (this.sourceNode && this.isPlaying) {
       this.sourceNode.playbackRate.value = rate;

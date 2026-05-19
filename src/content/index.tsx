@@ -1,6 +1,7 @@
 import { MSG, type ExtensionMessage } from '@shared/messages';
 import type { TextChunk } from '@shared/types';
 import { extractContent } from './extraction/extractor';
+import { splitSentences } from './extraction/sentence-splitter';
 import { getSelectedText } from './extraction/selection';
 import {
   canReuseExtraction,
@@ -424,25 +425,11 @@ function findSentenceBounds(
   text: string,
   charPos: number,
 ): { start: number; end: number } {
-  // Find sentence start: look backwards for sentence-ending punctuation or start of text
-  let start = 0;
-  for (let i = charPos - 1; i >= 0; i--) {
-    if ('.!?\n'.includes(text[i])) {
-      start = i + 1;
-      break;
+  const sentences = splitSentences(text);
+  for (const s of sentences) {
+    if (charPos >= s.startOffset && charPos < s.endOffset) {
+      return { start: s.startOffset, end: s.endOffset };
     }
   }
-  // Skip leading whitespace
-  while (start < text.length && text[start] === ' ') start++;
-
-  // Find sentence end: look forward for sentence-ending punctuation or end of text
-  let end = text.length;
-  for (let i = charPos; i < text.length; i++) {
-    if ('.!?\n'.includes(text[i])) {
-      end = i + 1;
-      break;
-    }
-  }
-
-  return { start, end };
+  return { start: 0, end: text.length };
 }
